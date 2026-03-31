@@ -462,60 +462,40 @@ class _AmountField extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       child: TextFormField(
         controller: controller,
+        autofocus: true,
         keyboardType: TextInputType.number,
         inputFormatters: [_ThousandSeparatorFormatter()],
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
-          shadows: [
-            Shadow(
-              offset: const Offset(1, 1),
-              blurRadius: 2,
-              color: Colors.black.withOpacity(0.3),
-            ),
-          ],
+          color: Colors.black,
         ),
         textAlign: TextAlign.center,
         decoration: InputDecoration(
           prefixText: 'Rp ',
-          prefixStyle: TextStyle(
+          prefixStyle: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
-            shadows: [
-              Shadow(
-                offset: const Offset(1, 1),
-                blurRadius: 2,
-                color: Colors.black.withOpacity(0.3),
-              ),
-            ],
+            color: Colors.black,
           ),
           enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.7)),
+            borderSide: BorderSide(color: Colors.black.withOpacity(0.45)),
           ),
           focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.white, width: 2),
+            borderSide: BorderSide(color: Colors.black, width: 2),
           ),
           errorBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.white70),
+            borderSide: BorderSide(color: Colors.black54),
           ),
           focusedErrorBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.white70, width: 2),
+            borderSide: BorderSide(color: Colors.black87, width: 2),
           ),
-          errorStyle: const TextStyle(color: Colors.white70),
+          errorStyle: const TextStyle(color: Colors.black87),
           hintText: '0',
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.black.withOpacity(0.65),
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            shadows: [
-              Shadow(
-                offset: const Offset(1, 1),
-                blurRadius: 2,
-                color: Colors.black.withOpacity(0.3),
-              ),
-            ],
           ),
         ),
         validator: Validators.validateAmount,

@@ -17,6 +17,7 @@ import '../presentation/screens/wallet/wallet_list_screen.dart';
 import '../presentation/screens/transaction/transaction_form_screen.dart';
 import '../presentation/screens/transaction/transaction_detail_screen.dart';
 import '../presentation/screens/transaction/transaction_list_screen.dart';
+import '../presentation/screens/transfer/transfer_screen.dart';
 import '../presentation/screens/report/monthly_report_screen.dart';
 import '../presentation/screens/splash/loading_screen.dart';
 
@@ -183,6 +184,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => TransactionDetailScreen(
           transaction: state.extra as TransactionEntity,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.transfer,
+        name: 'transfer',
+        builder: (context, state) => const TransferScreen(),
       ),
       // Report Routes
       GoRoute(

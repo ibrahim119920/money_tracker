@@ -165,12 +165,29 @@
 
 ## 7. Transfer Between Wallets
 
-**Status:** ⏳ Not Implemented
+**Status:** ✅ Complete
 
-- `transfersProvider` exists in `providers.dart`
-- `TransferEntity` and `TransferModel` exist in domain/data layers
-- Route `/transfer` registered in `AppRoutes` but no GoRoute handler added
-- `lib/presentation/screens/transfer/` folder is empty
+### Files Involved
+- `lib/presentation/screens/transfer/transfer_screen.dart`
+- `lib/data/repositories/cashbook_wallet_repository.dart` (`TransactionRepository.createTransfer`, `getTransfersByCashbook`)
+- `lib/presentation/providers/providers.dart` (`transfersProvider`)
+- `lib/app/router.dart` (GoRoute `/transfer`)
+- `lib/presentation/screens/dashboard/dashboard_screen.dart` (action sheet entry)
+
+### UI Components
+- Form transfer: dompet asal, dompet tujuan, jumlah, tanggal, catatan
+- Validasi: dompet asal/tujuan tidak boleh sama, amount wajib > 0
+- Riwayat transfer: list transfer dengan tanggal, catatan, dan nominal
+
+### Business Logic
+- Transfer dibuat via repository (`createTransfer`), bukan query langsung dari screen
+- Cek saldo dompet asal sebelum create transfer
+- Setelah create transfer: invalidate `transfersProvider`, `walletsProvider`, `totalBalanceProvider`
+- Akses cepat dari Dashboard bottom sheet: opsi Transfer (aktif)
+
+### Data Layer
+- `TransactionRepository.createTransfer()` — insert transfer baru
+- `TransactionRepository.getTransfersByCashbook()` — fetch daftar transfer + nama dompet asal/tujuan
 
 ---
 

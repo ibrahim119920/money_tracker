@@ -386,6 +386,87 @@ class TransactionRepository {
     }
   }
 
+  /// Buat transfer antar dompet
+  Future<TransferEntity> createTransfer({
+    required String cashbookId,
+    required String fromWalletId,
+    required String toWalletId,
+    required int amount,
+    String? notes,
+    required DateTime transferDate,
+  }) async {
+    if (fromWalletId == toWalletId) {
+      throw Exception('Tidak dapat transfer ke dompet yang sama');
+    }
+    if (amount <= 0) {
+      throw Exception('Jumlah transfer harus lebih dari 0');
+    }
+
+    try {
+      final fromWallet = await _client
+          .from('wallets')
+          .select('current_balance')
+          .eq('wallet_id', fromWalletId)
+          .single();
+
+      final currentBalance = (fromWallet['current_balance'] as int?) ?? 0;
+      if (currentBalance < amount) {
+        throw Exception('Saldo dompet asal tidak cukup');
+      }
+
+      final data = await _client
+          .from('transfers')
+          .insert({
+            'cashbook_id': cashbookId,
+            'from_wallet_id': fromWalletId,
+            'to_wallet_id': toWalletId,
+            'amount': amount,
+            'notes': notes,
+            'transfer_date': transferDate.toIso8601String().split('T')[0],
+          })
+          .select(
+            '*, from_wallet:from_wallet_id(wallet_name), to_wallet:to_wallet_id(wallet_name)',
+          )
+          .single();
+
+      final transferJson = Map<String, dynamic>.from(data);
+      final fromWalletJson =
+          transferJson['from_wallet'] as Map<String, dynamic>?;
+      final toWalletJson = transferJson['to_wallet'] as Map<String, dynamic>?;
+      transferJson['from_wallet_name'] = fromWalletJson?['wallet_name'];
+      transferJson['to_wallet_name'] = toWalletJson?['wallet_name'];
+
+      return TransferModel.fromJson(transferJson).toEntity();
+    } catch (e) {
+      throw Exception('Gagal membuat transfer: $e');
+    }
+  }
+
+  /// Get daftar transfer per cashbook
+  Future<List<TransferEntity>> getTransfersByCashbook(String cashbookId) async {
+    try {
+      final data = await _client
+          .from('transfers')
+          .select(
+            '*, from_wallet:from_wallet_id(wallet_name), to_wallet:to_wallet_id(wallet_name)',
+          )
+          .eq('cashbook_id', cashbookId)
+          .order('transfer_date', ascending: false);
+
+      return (data as List).map((row) {
+        final transferJson = Map<String, dynamic>.from(row);
+        final fromWalletJson =
+            transferJson['from_wallet'] as Map<String, dynamic>?;
+        final toWalletJson = transferJson['to_wallet'] as Map<String, dynamic>?;
+        transferJson['from_wallet_name'] = fromWalletJson?['wallet_name'];
+        transferJson['to_wallet_name'] = toWalletJson?['wallet_name'];
+        return TransferModel.fromJson(transferJson).toEntity();
+      }).toList();
+    } catch (e) {
+      throw Exception('Gagal mengambil transfer: $e');
+    }
+  }
+
   /// Get monthly summary (income & expense) untuk laporan
   Future<Map<String, int>> getMonthlySummaryForReport({
     required String cashbookId,

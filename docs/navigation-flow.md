@@ -25,6 +25,7 @@ Router configured in `lib/app/router.dart` via `goRouterProvider`.
 | `AppRoutes.transactions` | `/transactions` | `TransactionListScreen` | ✅ Yes |
 | `/transactions/form` | `/transactions/form` | `TransactionFormScreen(type, transaction?)` | ✅ Yes |
 | `/transactions/detail` | `/transactions/detail` | `TransactionDetailScreen(transaction)` | ✅ Yes |
+| `AppRoutes.transfer` | `/transfer` | `TransferScreen` | ✅ Yes |
 | `AppRoutes.monthlyReport` | `/report/monthly` | `MonthlyReportScreen` | ✅ Yes |
 | `AppRoutes.settings` | `/settings` | ⏳ No handler | ✅ Yes |
 
@@ -53,7 +54,7 @@ Router configured in `lib/app/router.dart` via `goRouterProvider`.
               ├── /transactions
               │     ├── /transactions/form  (create or edit transaction)
               │     └── /transactions/detail
-              ├── /transfer          ⏳ not yet implemented
+              ├── /transfer          ✅ implemented
               ├── /report/monthly    ✅ implemented
               └── /settings          ⏳ not yet implemented
 ```
@@ -135,4 +136,3 @@ builder: (context, state) => WalletDetailScreen(
 ## Known Navigation Gaps
 
 - `/report/annual`, `/settings` — routes terdaftar di `AppRoutes` constants; belum ada GoRoute atau screen
-- `/transfer` — terdaftar hanya sebagai konstanta; belum ada GoRoute atau screen

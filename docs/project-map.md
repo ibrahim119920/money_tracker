@@ -98,8 +98,10 @@ screens/
 │   ├── transaction_list_screen.dart   Filter by type + month; grouped by date
 │   ├── transaction_form_screen.dart   Create/edit income or expense
 │   └── transaction_detail_screen.dart
-├── transfer/     ⏳ Empty folder — not yet implemented
-├── report/       ⏳ Empty folder — not yet implemented
+├── transfer/
+│   └── transfer_screen.dart           Create transfer + transfer history
+├── report/
+│   └── monthly_report_screen.dart     Monthly report with summary + charts
 └── settings/     ⏳ Empty folder — not yet implemented
 ```
 
@@ -134,4 +136,4 @@ screens/
 | Wallets | `screens/wallet/` | `walletsProvider`, `totalBalanceProvider` | WalletRepository |
 | Transactions | `screens/transaction/` | `transactionsProvider`, `transactionFilterProvider`, `selectedMonthProvider` | TransactionRepository |
 | Categories | (picker sheet inside transaction form) | `categoriesProvider` | TransactionRepository |
-| Transfer | ⏳ screens/transfer/ | `transfersProvider` | TransactionRepository |
+| Transfer | `screens/transfer/transfer_screen.dart` | `transfersProvider` | TransactionRepository |

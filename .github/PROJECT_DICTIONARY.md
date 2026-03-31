@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: Maret 11, 2026 (Sprint 3.4 - Loading Screen & Race Condition Fix)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: Maret 31, 2026 (Sprint 4.3 - Transfer UX & Nominal Input Fix)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -84,9 +84,9 @@
 | `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeChip`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ |
 | `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField`, `_CategoryPickerSheet` | ✅ |
 | `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ |
+| `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen`, `_WalletDropdownItem`, `_ThousandSeparatorFormatter` | ✅ |
 | `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_SummaryCard`, `_NetCard`, `_PieChartSection`, `_TypeToggle`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ |
 | `lib/presentation/screens/settings/` | *(kosong)* | ⏳ |
-| `lib/presentation/screens/transfer/` | *(kosong)* | ⏳ |
 
 ### Widgets
 | File | Class | Catatan |
@@ -112,6 +112,7 @@
 | `AppRoutes.transactions` | `/transactions` | `TransactionListScreen` | |
 | `AppRoutes.transactionForm` | `/transactions/form` | `TransactionFormScreen` | |
 | `AppRoutes.transactionDetail` | `/transactions/detail` | `TransactionDetailScreen` | |
+| `AppRoutes.transfer` | `/transfer` | `TransferScreen` | Transfer antar dompet + riwayat |
 | `AppRoutes.monthlyReport` | `/report/monthly` | `MonthlyReportScreen` | Month picker, summary cards, pie chart, bar chart |
 | `AppRoutes.settings` | `/settings` | *(belum ada GoRoute handler)* | |
 
@@ -141,7 +142,7 @@
 | Cashbook CRUD | ✅ Lengkap | |
 | Wallet CRUD + Detail | ✅ Lengkap | |
 | Transaksi CRUD + Detail | ✅ Lengkap | |
-| Transfer antar wallet | ⏳ Belum | Provider ada, screen kosong |
+| Transfer antar wallet | ✅ Lengkap | Screen transfer, route, repository method, provider refresh sudah terpasang |
 | Laporan / Report | ✅ P0-P2 | Month picker, summary cards, pie chart (kategori), bar chart (tren 12 bulan) |
 | Settings | ⏳ Belum | Route ada, folder screen kosong |
 | Recurring Transactions | ⏳ Belum | Entity ada, tidak ada repo/screen |
@@ -367,6 +368,28 @@ Future<void> _createTransaction() async {
 
 ## SPRINT LOG & CHECKLIST
 
+### ✅ **Sprint 4.3 — Transfer UX & Nominal Input Fix (March 31, 2026)**
+**Items:**
+- [x] Setelah transfer sukses, langsung navigasi ke homepage/dashboard (`context.go(AppRoutes.dashboard)`) di `lib/presentation/screens/transfer/transfer_screen.dart`
+- [x] Ubah warna teks nominal input pada form pemasukan/pengeluaran menjadi hitam di `lib/presentation/screens/transaction/transaction_form_screen.dart`
+- [x] Aktifkan autofocus pada field nominal agar keyboard langsung siap mengetik saat halaman form transaksi dibuka
+
+### ✅ **Sprint 4.2 — Supabase DNS/Network Fix (March 31, 2026)**
+**Items:**
+- [x] Tambah permission internet di `android/app/src/main/AndroidManifest.xml`
+- [x] Validasi file AndroidManifest tidak ada error
+- [x] Root cause yang diperbaiki: build main/release belum mendeklarasikan `android.permission.INTERNET`
+
+### ✅ **Sprint 4.1 — Transfer Antar Wallet DONE (March 30, 2026)**
+**Items:**
+- [x] Tambah screen transfer `lib/presentation/screens/transfer/transfer_screen.dart` (form + riwayat transfer)
+- [x] Tambah method repository `createTransfer()` dan `getTransfersByCashbook()` di `TransactionRepository`
+- [x] Sambungkan `transfersProvider` ke repository (hapus query raw dari provider)
+- [x] Tambah GoRoute `/transfer` di `lib/app/router.dart`
+- [x] Aktifkan aksi Transfer di bottom sheet dashboard (`lib/presentation/screens/dashboard/dashboard_screen.dart`)
+- [x] Invalidation setelah create transfer: `transfersProvider`, `walletsProvider`, `totalBalanceProvider`
+- [x] Update dokumentasi terkait: `docs/feature-modules.md`, `docs/navigation-flow.md`, `docs/project-map.md`, `docs/architecture.md`, `AGENTS.md`
+
 ### ✅ Sprint 1 — Foundation Complete
 - Project structure + Supabase setup
 - Database schema + Entities
@@ -473,7 +496,7 @@ Future<void> _createTransaction() async {
 - [ ] Update PROJECT_DICTIONARY after completion
 
 ### ⏳ Sprint 4 — Polish & Advanced
-- [ ] Transfer between wallets
+- [x] Transfer between wallets
 - [ ] Data export (CSV, PDF)
 - [ ] Dark mode
 - [ ] Local cache (Drift)

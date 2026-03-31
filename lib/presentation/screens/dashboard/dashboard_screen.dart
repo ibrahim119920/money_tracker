@@ -208,16 +208,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 );
               },
             ),
-            // Transfer Option (disabled)
+            // Transfer Option
             ListTile(
               leading: CircleAvatar(
-                backgroundColor: Colors.grey,
+                backgroundColor: AppColors.transfer,
                 child: const Icon(Icons.swap_horiz, color: Colors.white),
               ),
               title: const Text('Transfer'),
-              subtitle: const Text('Segera hadir'),
-              enabled: false,
-              onTap: () {},
+              subtitle: const Text('Pindahkan saldo antar dompet'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/transfer');
+              },
             ),
             const SizedBox(height: 8),
           ],

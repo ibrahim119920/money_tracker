@@ -414,25 +414,9 @@ final reportYearlyTrendProvider =
 /// Transfers Provider - Daftar transfer di cashbook aktif
 final transfersProvider = FutureProvider<List<TransferEntity>>((ref) async {
   final activeCashbook = ref.watch(activeCashbookProvider);
-  final client = ref.watch(supabaseClientProvider);
 
   if (activeCashbook == null) return [];
 
-  try {
-    final response = await client
-        .from('transfers')
-        .select(
-          '*, from_wallets:from_wallet_id(wallet_name), to_wallets:to_wallet_id(wallet_name)',
-        )
-        .eq('cashbook_id', activeCashbook.cashbookId)
-        .order('transfer_date', ascending: false);
-
-    final transfers = (response as List).map((e) {
-      final model = TransferModel.fromJson(e);
-      return model.toEntity();
-    });
-    return transfers.toList();
-  } catch (e) {
-    throw Exception('Failed to fetch transfers: $e');
-  }
+  final repository = ref.watch(transactionRepositoryProvider);
+  return repository.getTransfersByCashbook(activeCashbook.cashbookId);
 });
