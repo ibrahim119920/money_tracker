@@ -138,6 +138,7 @@
 - `transactionFilterProvider` (`StateProvider`) holds current `type` filter and `month`
 - `selectedMonthProvider` (`StateProvider<DateTime>`) drives month display
 - `transactionsProvider` reads both filter providers and queries accordingly
+- `TransactionDetailScreen` refreshes detail data from database via `transactionDetailProvider(transactionId)` to ensure wallet/category/description fields stay accurate
 - After any mutation: must invalidate `transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`
 
 ### Data Layer
@@ -219,7 +220,19 @@
 
 ## 9. Settings
 
-**Status:** ⏳ Not Implemented
+**Status:** ✅ P0 Complete
 
-- Route `/settings` registered in `AppRoutes`
-- No GoRoute handler; `lib/presentation/screens/settings/` folder is empty
+### Files Involved
+- `lib/presentation/screens/settings/settings_screen.dart`
+- `lib/data/repositories/cashbook_wallet_repository.dart` (`SettingsRepository`)
+- `lib/presentation/providers/providers.dart` (`settingsRepositoryProvider`, `appThemeModeProvider`)
+- `lib/app/router.dart` (GoRoute `/settings`)
+- `lib/main.dart` (`themeMode` from provider)
+
+### P0 Scope
+- Profil akun: edit `display_name`, email readonly
+- Ubah password user login
+- Pengaturan tema: Sistem / Terang / Gelap
+- Set buku kas default
+- About + versi aplikasi
+- Logout dengan dialog konfirmasi

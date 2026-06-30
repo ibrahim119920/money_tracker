@@ -14,7 +14,17 @@ class TransactionDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isIncome = transaction.type == TransactionType.income;
+    final transactionAsync = ref.watch(
+      transactionDetailProvider(transaction.transactionId),
+    );
+    final detailTransaction = transactionAsync.valueOrNull ?? transaction;
+    final description = detailTransaction.name ?? detailTransaction.notes;
+    final hasExtraNotes =
+        detailTransaction.notes != null &&
+        detailTransaction.notes!.isNotEmpty &&
+        detailTransaction.notes != description;
+
+    final isIncome = detailTransaction.type == TransactionType.income;
     final appBarColor = isIncome ? AppColors.income : AppColors.expense;
 
     return Scaffold(
@@ -54,8 +64,11 @@ class TransactionDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
               child: Column(
                 children: [
+                  if (transactionAsync.isLoading)
+                    const LinearProgressIndicator(minHeight: 2),
+
                   Text(
-                    CurrencyFormatter.format(transaction.amount),
+                    CurrencyFormatter.format(detailTransaction.amount),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
@@ -74,7 +87,9 @@ class TransactionDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    DateFormatter.formatFullDate(transaction.transactionDate),
+                    DateFormatter.formatFullDate(
+                      detailTransaction.transactionDate,
+                    ),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -98,35 +113,34 @@ class TransactionDetailScreen extends ConsumerWidget {
                     _DetailRow(
                       icon: Icons.category_outlined,
                       label: 'Kategori',
-                      value: transaction.categoryName ?? '-',
+                      value: detailTransaction.categoryName ?? '-',
                     ),
                     const Divider(height: 1, indent: 56),
                     _DetailRow(
                       icon: Icons.account_balance_wallet_outlined,
                       label: 'Dompet',
-                      value: transaction.walletName ?? '-',
+                      value: detailTransaction.walletName ?? '-',
                     ),
                     const Divider(height: 1, indent: 56),
                     _DetailRow(
                       icon: Icons.calendar_today,
                       label: 'Tanggal',
                       value: DateFormatter.formatFullDate(
-                        transaction.transactionDate,
+                        detailTransaction.transactionDate,
                       ),
                     ),
                     const Divider(height: 1, indent: 56),
                     _DetailRow(
                       icon: Icons.notes,
                       label: 'Keterangan',
-                      value: transaction.name ?? '-',
+                      value: description ?? '-',
                     ),
-                    if (transaction.notes != null &&
-                        transaction.notes!.isNotEmpty) ...[
+                    if (hasExtraNotes) ...[
                       const Divider(height: 1, indent: 56),
                       _DetailRow(
                         icon: Icons.sticky_note_2,
                         label: 'Catatan',
-                        value: transaction.notes ?? '-',
+                        value: detailTransaction.notes ?? '-',
                       ),
                     ],
                   ],

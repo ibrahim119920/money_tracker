@@ -314,6 +314,16 @@ class TransactionModel {
   });
 
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
+    final walletRelationRaw = json['wallets'] ?? json['wallet'];
+    final walletRelation = walletRelationRaw is Map
+        ? Map<String, dynamic>.from(walletRelationRaw)
+        : null;
+
+    final categoryRelationRaw = json['categories'] ?? json['category'];
+    final categoryRelation = categoryRelationRaw is Map
+        ? Map<String, dynamic>.from(categoryRelationRaw)
+        : null;
+
     return TransactionModel(
       transactionId: json['transaction_id'] as String,
       cashbookId: json['cashbook_id'] as String,
@@ -332,10 +342,18 @@ class TransactionModel {
           ? DateTime.parse(json['updated_at'] as String)
           : null,
       isDeleted: json['is_deleted'] as bool? ?? false,
-      walletName: json['wallet_name'] as String?,
-      categoryName: json['category_name'] as String?,
-      categoryIcon: json['category_icon'] as String?,
-      categoryColor: json['category_color'] as String?,
+      walletName:
+          json['wallet_name'] as String? ??
+          walletRelation?['wallet_name'] as String?,
+      categoryName:
+          json['category_name'] as String? ??
+          categoryRelation?['category_name'] as String?,
+      categoryIcon:
+          json['category_icon'] as String? ??
+          categoryRelation?['icon'] as String?,
+      categoryColor:
+          json['category_color'] as String? ??
+          categoryRelation?['color'] as String?,
     );
   }
 

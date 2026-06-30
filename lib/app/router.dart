@@ -19,6 +19,7 @@ import '../presentation/screens/transaction/transaction_detail_screen.dart';
 import '../presentation/screens/transaction/transaction_list_screen.dart';
 import '../presentation/screens/transfer/transfer_screen.dart';
 import '../presentation/screens/report/monthly_report_screen.dart';
+import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/splash/loading_screen.dart';
 
 /// Route names constant
@@ -195,6 +196,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.monthlyReport,
         name: 'monthlyReport',
         builder: (context, state) => const MonthlyReportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        name: 'settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

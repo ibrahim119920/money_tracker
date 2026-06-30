@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: Maret 31, 2026 (Sprint 4.3 - Transfer UX & Nominal Input Fix)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: May 8, 2026 (Sprint 4.6 - Fix Wallet Balance on Delete)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -26,7 +26,7 @@
 | File | Class / Konten |
 |---|---|
 | `lib/data/models/models.dart` | Barrel: `UserModel`, `CashbookModel`, `WalletModel`, `CategoryModel`, `TransactionModel`, `TransferModel` |
-| `lib/data/repositories/cashbook_wallet_repository.dart` | `CashbookRepository`, `WalletRepository`, `TransactionRepository` |
+| `lib/data/repositories/cashbook_wallet_repository.dart` | `CashbookRepository`, `WalletRepository`, `TransactionRepository`, `SettingsRepository` |
 
 **Setiap model** punya: `fromJson()`, `toJson()`, `toEntity()`
 
@@ -48,11 +48,12 @@
 | File | Provider | Type | Catatan |
 |---|---|---|---|
 | `lib/presentation/providers/providers.dart` | `supabaseClientProvider` | `Provider` | DI untuk Supabase client |
-| `lib/presentation/providers/providers.dart` | `cashbookRepositoryProvider`, `walletRepositoryProvider`, `transactionRepositoryProvider` | `Provider` | DI untuk semua repository |
+| `lib/presentation/providers/providers.dart` | `cashbookRepositoryProvider`, `walletRepositoryProvider`, `transactionRepositoryProvider`, `settingsRepositoryProvider` | `Provider` | DI untuk semua repository |
 | `lib/presentation/providers/providers.dart` | `authStateProvider` | `StreamProvider` | Listen auth state changes |
 | `lib/presentation/providers/providers.dart` | `currentUserProvider` | `FutureProvider` | Current logged-in user |
 | `lib/presentation/providers/providers.dart` | `setupInProgressProvider` | `StateProvider<bool>` | ⚡ Flag untuk suppress router redirect saat onboarding |
 | `lib/presentation/providers/providers.dart` | `activeCashbookProvider` | `StateProvider` | Cashbook yg sdg dipilih (set otomatis oleh defaultCashbookProvider) |
+| `lib/presentation/providers/providers.dart` | `appThemeModeProvider` | `StateProvider<ThemeMode>` | Theme mode runtime: sistem/terang/gelap |
 | `lib/presentation/providers/providers.dart` | `cashbooksProvider` | `FutureProvider` | Daftar semua cashbook user |
 | `lib/presentation/providers/providers.dart` | `defaultCashbookProvider` | `FutureProvider` | ⚡ Auto-load default cashbook & set ke active |
 | `lib/presentation/providers/providers.dart` | `walletsProvider` | `FutureProvider` | Dompet di active cashbook |
@@ -60,6 +61,7 @@
 | `lib/presentation/providers/providers.dart` | `categoriesProvider` | `FutureProvider.family` | By cashbookId |
 | `lib/presentation/providers/providers.dart` | `transactionFilterProvider` | `StateProvider` | Filter (tipe, bulan) |
 | `lib/presentation/providers/providers.dart` | `transactionsProvider` | `FutureProvider` | Transaksi dengan filter |
+| `lib/presentation/providers/providers.dart` | `transactionDetailProvider` | `FutureProvider.family<TransactionEntity, String>` | Detail transaksi by `transactionId` + join wallet/category |
 | `lib/presentation/providers/providers.dart` | `selectedMonthProvider` | `StateProvider<DateTime>` | Bulan yg dipilih di transaction list |
 | `lib/presentation/providers/providers.dart` | `monthlySummaryProvider` | `FutureProvider` | Summary income/expense setiap bulan |
 | `lib/presentation/providers/providers.dart` | `transfersProvider` | `FutureProvider` | Transfer history |
@@ -86,7 +88,7 @@
 | `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ |
 | `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen`, `_WalletDropdownItem`, `_ThousandSeparatorFormatter` | ✅ |
 | `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_SummaryCard`, `_NetCard`, `_PieChartSection`, `_TypeToggle`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ |
-| `lib/presentation/screens/settings/` | *(kosong)* | ⏳ |
+| `lib/presentation/screens/settings/settings_screen.dart` | `SettingsScreen` | ✅ P0 — profile, password, theme mode, default cashbook, about, logout |
 
 ### Widgets
 | File | Class | Catatan |
@@ -114,7 +116,7 @@
 | `AppRoutes.transactionDetail` | `/transactions/detail` | `TransactionDetailScreen` | |
 | `AppRoutes.transfer` | `/transfer` | `TransferScreen` | Transfer antar dompet + riwayat |
 | `AppRoutes.monthlyReport` | `/report/monthly` | `MonthlyReportScreen` | Month picker, summary cards, pie chart, bar chart |
-| `AppRoutes.settings` | `/settings` | *(belum ada GoRoute handler)* | |
+| `AppRoutes.settings` | `/settings` | `SettingsScreen` | Profil, app settings, logout |
 
 **Navigasi:** `context.go(AppRoutes.xxx)` atau `context.push(AppRoutes.xxx, extra: entity)`
 
@@ -144,7 +146,7 @@
 | Transaksi CRUD + Detail | ✅ Lengkap | |
 | Transfer antar wallet | ✅ Lengkap | Screen transfer, route, repository method, provider refresh sudah terpasang |
 | Laporan / Report | ✅ P0-P2 | Month picker, summary cards, pie chart (kategori), bar chart (tren 12 bulan) |
-| Settings | ⏳ Belum | Route ada, folder screen kosong |
+| Settings | ✅ P0 | Profil akun, ubah password, mode tema, default cashbook, about, logout |
 | Recurring Transactions | ⏳ Belum | Entity ada, tidak ada repo/screen |
 | Local DB (Drift) | ⏳ Belum | Dependency ada, belum digunakan |
 
@@ -157,7 +159,8 @@
 │  ├─ supabaseClientProvider
 │  ├─ cashbookRepositoryProvider
 │  ├─ walletRepositoryProvider
-│  └─ transactionRepositoryProvider
+│  ├─ transactionRepositoryProvider
+│  └─ settingsRepositoryProvider
 │
 ├─ Tier 2: Auth
 │  ├─ authStateProvider
@@ -166,6 +169,7 @@
 ├─ Tier 3: Setup & State
 │  ├─ setupInProgressProvider (StateProvider - suppress redirect)
 │  ├─ activeCashbookProvider (StateProvider - manual set or auto by defaultCashbookProvider)
+│  ├─ appThemeModeProvider (StateProvider - theme sistem/terang/gelap)
 │  └─ defaultCashbookProvider ← WATCHES: currentUserProvider, cashbookRepositoryProvider
 │                              ← AUTO-SETS: activeCashbookProvider
 │
@@ -368,6 +372,22 @@ Future<void> _createTransaction() async {
 
 ## SPRINT LOG & CHECKLIST
 
+### ✅ **Sprint 4.5 — Transaction Detail Hydration Fix DONE (April 8, 2026)**
+**Items:**
+- [x] Perbaiki parser `TransactionModel.fromJson()` agar membaca hasil join nested Supabase (`wallets`, `categories`) di `lib/data/models/models.dart`
+- [x] Tambah `transactionDetailProvider(transactionId)` untuk fetch ulang detail transaksi dari database di `lib/presentation/providers/providers.dart`
+- [x] Update `TransactionDetailScreen` agar memakai data provider detail (bukan hanya payload route), sehingga kategori/dompet/keterangan tampil akurat di `lib/presentation/screens/transaction/transaction_detail_screen.dart`
+- [x] Update dokumentasi terkait di `docs/state-management.md` dan `docs/feature-modules.md`
+
+### ✅ **Sprint 4.4 — Settings P0 Complete (April 2, 2026)**
+**Items:**
+- [x] Tambah `SettingsScreen` di `lib/presentation/screens/settings/settings_screen.dart`
+- [x] Tambah `SettingsRepository` untuk update profil, ubah password, dan logout
+- [x] Tambah `settingsRepositoryProvider` dan `appThemeModeProvider`
+- [x] Daftarkan GoRoute `/settings` di router
+- [x] Integrasi `themeMode` di `main.dart` agar bisa switch Sistem/Terang/Gelap
+- [x] Tambah fitur P0: edit nama, email readonly, ubah password, set default cashbook, about/version, logout
+
 ### ✅ **Sprint 4.3 — Transfer UX & Nominal Input Fix (March 31, 2026)**
 **Items:**
 - [x] Setelah transfer sukses, langsung navigasi ke homepage/dashboard (`context.go(AppRoutes.dashboard)`) di `lib/presentation/screens/transfer/transfer_screen.dart`
@@ -505,4 +525,10 @@ Future<void> _createTransaction() async {
 - [ ] Update PROJECT_DICTIONARY after completion
 
 ---
+
+
+### ? **Sprint 4.6 � Fix Wallet Balance on Delete DONE (May 8, 2026)**
+**Items:**
+- [x] Fix bug: Wallet balance did not update when a transaction is soft-deleted.
+- [x] Modified deleteTransaction in lib/data/repositories/cashbook_wallet_repository.dart to manually adjust current_balance on the source wallet.
 

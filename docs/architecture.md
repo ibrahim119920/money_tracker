@@ -96,7 +96,6 @@ Widget renders entity data
 ## Not Yet Implemented
 
 - `lib/domain/usecases/` — empty; planned as a future abstraction layer
-- `lib/presentation/screens/settings/` — UI missing; route registered
 - Annual report (`/report/annual`) — route constant exists, screen/GoRoute belum ada
 - Drift local cache — dependency installed, no code uses it yet
 - Recurring transactions — entity defined, no repository or UI

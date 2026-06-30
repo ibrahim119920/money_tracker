@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -30,6 +31,17 @@ final walletRepositoryProvider = Provider<WalletRepository>((ref) {
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   return TransactionRepository(client);
+});
+
+/// Settings Repository Provider
+final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return SettingsRepository(client);
+});
+
+/// Theme mode aplikasi (runtime state)
+final appThemeModeProvider = StateProvider<ThemeMode>((ref) {
+  return ThemeMode.light;
 });
 
 // ============================================================================
@@ -299,6 +311,30 @@ final transactionsProvider = FutureProvider<List<TransactionEntity>>((
     throw Exception('Failed to fetch transactions: $e');
   }
 });
+
+/// Transaction Detail Provider - Detail transaksi by ID (dengan joined wallet & kategori)
+final transactionDetailProvider =
+    FutureProvider.family<TransactionEntity, String>((
+      ref,
+      transactionId,
+    ) async {
+      final client = ref.watch(supabaseClientProvider);
+
+      try {
+        final response = await client
+            .from('transactions')
+            .select(
+              '*, wallets(wallet_name), categories(category_name, icon, color)',
+            )
+            .eq('transaction_id', transactionId)
+            .eq('is_deleted', false)
+            .single();
+
+        return TransactionModel.fromJson(response).toEntity();
+      } catch (e) {
+        throw Exception('Failed to fetch transaction detail: $e');
+      }
+    });
 
 /// Monthly Summary Provider - Ringkasan income/expense per bulan
 final selectedMonthProvider = StateProvider<DateTime>((ref) {

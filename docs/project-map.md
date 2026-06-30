@@ -102,7 +102,8 @@ screens/
 │   └── transfer_screen.dart           Create transfer + transfer history
 ├── report/
 │   └── monthly_report_screen.dart     Monthly report with summary + charts
-└── settings/     ⏳ Empty folder — not yet implemented
+└── settings/
+    └── settings_screen.dart           Settings P0: profile, password, theme, default cashbook, about, logout
 ```
 
 ### Widgets (`lib/presentation/widgets/`)

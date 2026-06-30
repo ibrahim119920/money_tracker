@@ -64,7 +64,7 @@ A personal finance management Flutter app for Indonesian users. Features: cashbo
 | Transaction CRUD + Detail | ✅ Complete |
 | Transfer between wallets | ✅ Complete |
 | Monthly/annual reports | ✅ Monthly complete (annual pending) |
-| Settings | ⏳ Not started |
+| Settings | ✅ P0 complete |
 | Drift local cache | ⏳ Not started |
 
 ---

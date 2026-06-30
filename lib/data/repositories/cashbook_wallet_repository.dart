@@ -377,10 +377,44 @@ class TransactionRepository {
   /// Hapus transaksi (soft delete)
   Future<void> deleteTransaction(String transactionId) async {
     try {
+      // 1. Ambil data transaksi terlebih dahulu
+      final trxData = await _client
+          .from('transactions')
+          .select('wallet_id, amount, type')
+          .eq('transaction_id', transactionId)
+          .single();
+
+      final walletId = trxData['wallet_id'] as String;
+      final amount = trxData['amount'] as int;
+      final typeStr = trxData['type'] as String;
+
+      // 2. Ambil saldo wallet saat ini
+      final walletData = await _client
+          .from('wallets')
+          .select('current_balance')
+          .eq('wallet_id', walletId)
+          .single();
+
+      int currentBalance = (walletData['current_balance'] as int?) ?? 0;
+
+      // 3. Sesuaikan saldo (karena dihapus, kebalikan dari saat dibuat)
+      if (typeStr == TransactionType.income.value) {
+        currentBalance -= amount;
+      } else if (typeStr == TransactionType.expense.value) {
+        currentBalance += amount;
+      }
+
+      // 4. Update transaksi menjadi terhapus
       await _client
           .from('transactions')
           .update({'is_deleted': true})
           .eq('transaction_id', transactionId);
+
+      // 5. Update saldo wallet
+      await _client
+          .from('wallets')
+          .update({'current_balance': currentBalance})
+          .eq('wallet_id', walletId);
     } catch (e) {
       throw Exception('Gagal menghapus transaksi: $e');
     }
@@ -595,6 +629,50 @@ class TransactionRepository {
         for (int m = 1; m <= 12; m++)
           {'month': m, 'year': year, 'income': 0, 'expense': 0},
       ];
+    }
+  }
+}
+
+/// SettingsRepository - aksi pengaturan akun dan aplikasi
+class SettingsRepository {
+  final SupabaseClient _client;
+
+  SettingsRepository(this._client);
+
+  /// Update nama tampilan user pada tabel users
+  Future<UserEntity> updateDisplayName({
+    required String userId,
+    required String displayName,
+  }) async {
+    try {
+      final data = await _client
+          .from('users')
+          .update({'display_name': displayName})
+          .eq('user_id', userId)
+          .select()
+          .single();
+
+      return UserModel.fromJson(data).toEntity();
+    } catch (e) {
+      throw Exception('Gagal memperbarui profil: $e');
+    }
+  }
+
+  /// Update password user yang sedang login
+  Future<void> updatePassword({required String newPassword}) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } catch (e) {
+      throw Exception('Gagal mengubah password: $e');
+    }
+  }
+
+  /// Logout user
+  Future<void> signOut() async {
+    try {
+      await _client.auth.signOut();
+    } catch (e) {
+      throw Exception('Gagal logout: $e');
     }
   }
 }

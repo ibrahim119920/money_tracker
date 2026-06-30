@@ -18,6 +18,7 @@ These are synchronous; they just wire up dependencies.
 | `cashbookRepositoryProvider` | `Provider` | `CashbookRepository` (receives client via ref) |
 | `walletRepositoryProvider` | `Provider` | `WalletRepository` |
 | `transactionRepositoryProvider` | `Provider` | `TransactionRepository` |
+| `settingsRepositoryProvider` | `Provider` | `SettingsRepository` |
 
 ### Tier 2 — Authentication (StreamProvider / FutureProvider)
 
@@ -32,6 +33,7 @@ These are synchronous; they just wire up dependencies.
 |---|---|---|
 | `setupInProgressProvider` | `StateProvider<bool>` | `false` — set to `true` during onboarding wizard to suppress router redirects |
 | `activeCashbookProvider` | `StateProvider<CashbookEntity?>` | `null` — auto-set by `defaultCashbookProvider` |
+| `appThemeModeProvider` | `StateProvider<ThemeMode>` | `ThemeMode.light` |
 
 ### Tier 4 — Cashbook Data (FutureProvider)
 
@@ -54,6 +56,7 @@ These are synchronous; they just wire up dependencies.
 | `transactionFilterProvider` | `StateProvider` | Holds `{type, month}` filter state |
 | `selectedMonthProvider` | `StateProvider<DateTime>` | Selected month in transaction list |
 | `transactionsProvider` | `FutureProvider<List<TransactionEntity>>` | Reads both filter providers |
+| `transactionDetailProvider` | `FutureProvider.family<TransactionEntity, String>` | Fetches fresh transaction detail by `transactionId` (with wallet/category joins) |
 | `monthlySummaryProvider` | `FutureProvider<Map>` | Income/expense totals for selected month |
 | `categoriesProvider` | `FutureProvider.family` | Keyed by `cashbookId` |
 | `transfersProvider` | `FutureProvider<List<TransferEntity>>` | Transfer history |
@@ -128,6 +131,9 @@ This provider does double duty: it fetches the default cashbook AND writes it in
 
 ### setupInProgressProvider
 Set to `true` before launching the first-time setup wizard in `RegisterScreen`. Prevents the router's `redirect` function from navigating away mid-wizard. Must be set back to `false` when wizard completes (even on error).
+
+### appThemeModeProvider
+Used by `MoneyTrackerApp` in `main.dart` as `themeMode` source. `SettingsScreen` updates this provider directly for Sistem/Terang/Gelap switching.
 
 ### categoriesProvider.family
 Uses `.family` modifier keyed by `cashbookId`. Categories are per cashbook (user-defined) plus system-wide ones (null cashbook_id). Pass the active cashbook ID when watching: `ref.watch(categoriesProvider(cashbookId))`.
