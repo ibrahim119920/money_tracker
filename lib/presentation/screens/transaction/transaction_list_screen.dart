@@ -248,10 +248,7 @@ class _FilterBar extends StatelessWidget {
             ),
             label: Text(
               DateFormatter.formatMonthYear(selectedMonth),
-              style: TextStyle(
-                fontSize: 13,
-                color: colorScheme.onSurface,
-              ),
+              style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
             ),
           ),
         ],

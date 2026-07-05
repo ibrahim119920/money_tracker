@@ -422,11 +422,9 @@ class _TotalBalanceCard extends ConsumerWidget {
         children: [
           Text(
             'Total Saldo',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                ),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: colorScheme.onPrimaryContainer,
+            ),
           ),
           const SizedBox(height: 6),
           AnimatedSwitcher(
@@ -719,7 +717,9 @@ class _WalletSection extends ConsumerWidget {
                             Text(
                               'Belum ada dompet',
                               style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: colorScheme.onSurfaceVariant),
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                             ),
                             TextButton(
                               onPressed: () => context.push('/wallets'),

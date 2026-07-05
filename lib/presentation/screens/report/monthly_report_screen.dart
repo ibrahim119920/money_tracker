@@ -496,7 +496,9 @@ class _NetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isPositive = net >= 0;
-    final background = isPositive ? colorScheme.primaryContainer : colorScheme.secondaryContainer;
+    final background = isPositive
+        ? colorScheme.primaryContainer
+        : colorScheme.secondaryContainer;
     final accent = isPositive ? colorScheme.primary : colorScheme.secondary;
     final label = isPositive ? 'Surplus' : 'Defisit';
 
@@ -773,7 +775,9 @@ class _TypeToggle extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isSelected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+            color: isSelected
+                ? colorScheme.onPrimary
+                : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -812,10 +816,7 @@ class _CategoryLegend extends StatelessWidget {
               Expanded(
                 child: Text(
                   categoryName,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colorScheme.onSurface,
-                  ),
+                  style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1005,8 +1006,8 @@ class _BarChartSection extends ConsumerWidget {
                                         ? FontWeight.bold
                                         : FontWeight.normal,
                                     color: isSelected
-                                      ? colorScheme.primary
-                                      : colorScheme.onSurfaceVariant,
+                                        ? colorScheme.primary
+                                        : colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               );
@@ -1088,7 +1089,9 @@ class _BarChartSection extends ConsumerWidget {
         barRods: [
           BarChartRodData(
             toY: income,
-            color: colorScheme.primary.withValues(alpha: isSelected ? 1.0 : 0.6),
+            color: colorScheme.primary.withValues(
+              alpha: isSelected ? 1.0 : 0.6,
+            ),
             width: 6,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),

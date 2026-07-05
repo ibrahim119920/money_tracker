@@ -177,11 +177,9 @@ class WalletDetailScreen extends ConsumerWidget {
                       const SizedBox(width: 10),
                       Text(
                         _getTypeLabel(wallet.type),
-                        style: Theme.of(
-                          context,
-                        ).textTheme.titleSmall?.copyWith(
-                              color: colorScheme.onPrimary.withValues(alpha: 0.85),
-                            ),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: colorScheme.onPrimary.withValues(alpha: 0.85),
+                        ),
                       ),
                     ],
                   ),
@@ -268,7 +266,7 @@ class WalletDetailScreen extends ConsumerWidget {
                             label: 'Pemasukan',
                             amount: income,
                             icon: Icons.arrow_downward,
-                              color: colorScheme.primary,
+                            color: colorScheme.primary,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -277,7 +275,7 @@ class WalletDetailScreen extends ConsumerWidget {
                             label: 'Pengeluaran',
                             amount: expense,
                             icon: Icons.arrow_upward,
-                              color: colorScheme.error,
+                            color: colorScheme.error,
                           ),
                         ),
                       ],
@@ -349,7 +347,9 @@ class WalletDetailScreen extends ConsumerWidget {
                             Text(
                               'Belum ada transaksi',
                               style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: colorScheme.onSurfaceVariant),
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
                             ),
                           ],
                         ),
@@ -405,7 +405,7 @@ class WalletDetailScreen extends ConsumerWidget {
                           subtitle: Text(
                             subtitleParts.join(' · '),
                             style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                                ?.copyWith(color: colorScheme.onSurfaceVariant),
                           ),
                           trailing: Text(
                             '${isIncome ? '+' : '-'}${CurrencyFormatter.format(tx.amount)}',

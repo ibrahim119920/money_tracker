@@ -107,7 +107,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: colorScheme.outlineVariant),
+                  side: BorderSide(color: colorScheme.outlineVariant),
                 ),
                 child: Column(
                   children: [

@@ -85,13 +85,21 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final outerBackground = isDark ? colorScheme.surfaceContainerLowest : AppColors.background;
+    final outerBackground = isDark
+        ? colorScheme.surfaceContainerLowest
+        : AppColors.background;
     final accentLavender = isDark ? AppColors.darkLavender : AppColors.lavender;
     final accentLime = isDark ? AppColors.darkLime : AppColors.lime;
     final accentMint = isDark ? AppColors.darkMint : AppColors.mint;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-    final iconColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+    final iconColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final progressColor = isDark ? AppColors.darkPrimary : AppColors.primary;
     // Trigger provider loading
     ref.watch(defaultCashbookProvider);
@@ -147,7 +155,9 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
                   width: 88,
                   height: 88,
                   decoration: BoxDecoration(
-                    color: isDark ? colorScheme.surfaceContainerHigh : AppColors.surface,
+                    color: isDark
+                        ? colorScheme.surfaceContainerHigh
+                        : AppColors.surface,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: colorScheme.outlineVariant),
                   ),
@@ -170,10 +180,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Kelola keuangan dengan mudah',
-                  style: TextStyle(
-                    color: textSecondary,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: textSecondary, fontSize: 14),
                 ),
                 const SizedBox(height: 16),
                 Container(

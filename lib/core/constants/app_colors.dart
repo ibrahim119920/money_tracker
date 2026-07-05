@@ -44,44 +44,84 @@ class AppColors {
 
   // Dark Theme Colors (New Palette)
   // Primary Colors
-  static const Color darkBackground = Color(0xFF0D1F1F);      // Background luar (dasar terdalam)
-  static const Color darkSurface = Color(0xFF1E3535);         // Card/Surface (pengganti White)
-  static const Color darkSurfaceVariant = Color(0xFF1C3232);  // Slightly lighter surface
-  static const Color darkSurfaceContainer = Color(0xFF234040); // Elevated surface
-  static const Color darkSurfaceContainerHigh = Color(0xFF2A4A4A); // Higher elevation
-  static const Color darkOutline = Color(0xFF5C7086);         // Blue-gray for outlines
-  static const Color darkOutlineVariant = Color(0xFF3E4A4A);  // Subtle outlines
+  static const Color darkBackground = Color(
+    0xFF0D1F1F,
+  ); // Background luar (dasar terdalam)
+  static const Color darkSurface = Color(
+    0xFF1E3535,
+  ); // Card/Surface (pengganti White)
+  static const Color darkSurfaceVariant = Color(
+    0xFF1C3232,
+  ); // Slightly lighter surface
+  static const Color darkSurfaceContainer = Color(
+    0xFF234040,
+  ); // Elevated surface
+  static const Color darkSurfaceContainerHigh = Color(
+    0xFF2A4A4A,
+  ); // Higher elevation
+  static const Color darkOutline = Color(0xFF5C7086); // Blue-gray for outlines
+  static const Color darkOutlineVariant = Color(0xFF3E4A4A); // Subtle outlines
 
   // Dark Text Colors
-  static const Color darkTextPrimary = Color(0xFFF2F5F4);     // Teks utama (heading) - hampir putih
-  static const Color darkTextSecondary = Color(0xFF8FA3A0);   // Teks sekunder (subtext)
-  static const Color darkTextTertiary = Color(0xFF9AACA9);    // Teks tersier
-  static const Color darkTextHint = Color(0xFF6B7A77);        // Hint text
+  static const Color darkTextPrimary = Color(
+    0xFFF2F5F4,
+  ); // Teks utama (heading) - hampir putih
+  static const Color darkTextSecondary = Color(
+    0xFF8FA3A0,
+  ); // Teks sekunder (subtext)
+  static const Color darkTextTertiary = Color(0xFF9AACA9); // Teks tersier
+  static const Color darkTextHint = Color(0xFF6B7A77); // Hint text
 
   // Dark Primary (keep brand identity - Teal)
-  static const Color darkPrimary = Color(0xFF6FCB4A);         // Green (active/highlight) - main brand
-  static const Color darkPrimaryContainer = Color(0xFF1A3D1A); // Dark green container
-  static const Color darkOnPrimary = Color(0xFF0D1F1F);       // On primary
-  static const Color darkOnPrimaryContainer = Color(0xFFB8D22E); // Lime green on container
+  static const Color darkPrimary = Color(
+    0xFF6FCB4A,
+  ); // Green (active/highlight) - main brand
+  static const Color darkPrimaryContainer = Color(
+    0xFF1A3D1A,
+  ); // Dark green container
+  static const Color darkOnPrimary = Color(0xFF0D1F1F); // On primary
+  static const Color darkOnPrimaryContainer = Color(
+    0xFFB8D22E,
+  ); // Lime green on container
 
   // Dark Accent Colors
-  static const Color darkLavender = Color(0xFF9F8FD4);        // Lavender/Purple (aksen besar)
-  static const Color darkLavenderContainer = Color(0xFF3A3450); // Dark lavender container
-  static const Color darkLime = Color(0xFFC8DB4A);            // Lime Green (aksen cerah)
-  static const Color darkLimeContainer = Color(0xFF3D4A14);    // Dark lime container
-  static const Color darkMint = Color(0xFF5C9578);            // Soft Mint/Sage Green
-  static const Color darkMintContainer = Color(0xFF28403A);    // Teal/Mint (icon bg ketiga)
-  static const Color darkPeach = Color(0xFF4A3A30);           // Peach/Cream (icon bg Virusology)
-  static const Color darkSoftTeal = Color(0xFF3E8478);        // Teal (icon container Thorne B-complex)
-  static const Color darkSecondaryContainer = Color(0xFF3A3450); // Secondary container
-  static const Color darkTertiaryContainer = Color(0xFF3D4A14);   // Tertiary container
+  static const Color darkLavender = Color(
+    0xFF9F8FD4,
+  ); // Lavender/Purple (aksen besar)
+  static const Color darkLavenderContainer = Color(
+    0xFF3A3450,
+  ); // Dark lavender container
+  static const Color darkLime = Color(0xFFC8DB4A); // Lime Green (aksen cerah)
+  static const Color darkLimeContainer = Color(
+    0xFF3D4A14,
+  ); // Dark lime container
+  static const Color darkMint = Color(0xFF5C9578); // Soft Mint/Sage Green
+  static const Color darkMintContainer = Color(
+    0xFF28403A,
+  ); // Teal/Mint (icon bg ketiga)
+  static const Color darkPeach = Color(
+    0xFF4A3A30,
+  ); // Peach/Cream (icon bg Virusology)
+  static const Color darkSoftTeal = Color(
+    0xFF3E8478,
+  ); // Teal (icon container Thorne B-complex)
+  static const Color darkSecondaryContainer = Color(
+    0xFF3A3450,
+  ); // Secondary container
+  static const Color darkTertiaryContainer = Color(
+    0xFF3D4A14,
+  ); // Tertiary container
 
   // Dark Status Colors
-  static const Color darkSuccess = Color(0xFF6FCB4A);          // Green (active/highlight)
-  static const Color darkError = Color(0xFFEF5350);            // Red for errors
-  static const Color darkWarning = Color(0xFFFFD54F);          // Yellow for warnings
-  static const Color darkInfo = Color(0xFF7A6BB0);             // Purple (icon container Uronox)
-  static const Color darkErrorContainer = Color(0xFF5A1A1A);   // Error container
+  static const Color darkSuccess = Color(
+    0xFF6FCB4A,
+  ); // Green (active/highlight)
+  static const Color darkError = Color(0xFFEF5350); // Red for errors
+  static const Color darkWarning = Color(0xFFFFD54F); // Yellow for warnings
+  static const Color darkInfo = Color(
+    0xFF7A6BB0,
+  ); // Purple (icon container Uronox)
+  static const Color darkErrorContainer = Color(0xFF5A1A1A); // Error container
 
   // Dark Disabled state
   static const Color darkDisabled = Color(0xFF3E4A4A);
