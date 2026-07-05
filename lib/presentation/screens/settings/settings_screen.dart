@@ -423,7 +423,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               selected: {selectedThemeMode},
               onSelectionChanged: (values) {
                 final mode = values.first;
-                ref.read(appThemeModeProvider.notifier).state = mode;
+                ref.read(appThemeModeProvider.notifier).setThemeMode(mode);
               },
             ),
             const SizedBox(height: 16),

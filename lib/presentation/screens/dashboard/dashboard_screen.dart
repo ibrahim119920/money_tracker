@@ -7,243 +7,283 @@ import '../../../core/utils/utils.dart';
 import '../../../domain/entities/entities.dart';
 import '../../providers/providers.dart';
 
-class DashboardScreen extends ConsumerStatefulWidget {
+class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
-  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  // Always 0 (Dashboard). Nav bar hanya ada di DashboardScreen;
-  // halaman lain di-push ke atas stack sehingga bar tidak terlihat.
-  // Tidak boleh diubah agar highlight tetap di Dashboard saat kembali.
-  final int _selectedNavIndex = 0;
-
-  @override
   Widget build(BuildContext context) {
-    // Auto-load default cashbook & set as active
-    ref.watch(defaultCashbookProvider);
-
-    final cashbooksAsync = ref.watch(cashbooksProvider);
-    final activeCashbook = ref.watch(activeCashbookProvider);
-    final walletsAsync = ref.watch(walletsProvider);
-    final totalBalanceAsync = ref.watch(totalBalanceProvider);
-    final currentUserAsync = ref.watch(currentUserProvider);
-
     return Stack(
       children: [
-        Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            title: _CashbookSwitcher(
-              activeCashbook: activeCashbook,
-              cashbooksAsync: cashbooksAsync,
-              ref: ref,
-            ),
-            actions: [
-              currentUserAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (user) => Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: CircleAvatar(
-                    backgroundColor: Colors.white24,
-                    child: Text(
-                      user?.displayName?.substring(0, 1).toUpperCase() ?? '?',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          body: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(walletsProvider);
-              ref.invalidate(totalBalanceProvider);
-              ref.invalidate(monthlySummaryProvider);
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Total balance card (AppBar background extends)
-                  _TotalBalanceCard(totalBalanceAsync: totalBalanceAsync),
-
-                  const SizedBox(height: 16),
-
-                  // Ringkasan bulan ini
-                  _MonthlySection(),
-
-                  const SizedBox(height: 8),
-
-                  // Daftar dompet
-                  _WalletSection(walletsAsync: walletsAsync),
-                ],
-              ),
-            ),
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _showAddTransactionSheet(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Transaksi Baru'),
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _selectedNavIndex,
-            type: BottomNavigationBarType.fixed,
-            onTap: (index) {
-              switch (index) {
-                case 0:
-                  // Dashboard - already here
-                  break;
-                case 1:
-                  context.push('/transactions');
-                  break;
-                case 2:
-                  context.push('/report/monthly');
-                  break;
-                case 3:
-                  context.push('/settings');
-                  break;
-              }
-            },
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined),
-                activeIcon: Icon(Icons.home),
-                label: 'Dashboard',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.receipt_long_outlined),
-                activeIcon: Icon(Icons.receipt_long),
-                label: 'Transaksi',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.bar_chart_outlined),
-                activeIcon: Icon(Icons.bar_chart),
-                label: 'Laporan',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.settings_outlined),
-                activeIcon: Icon(Icons.settings),
-                label: 'Pengaturan',
-              ),
-            ],
-          ),
+        const _DashboardBootstrap(),
+        _DashboardScaffold(
+          onAddTransaction: () => _showAddTransactionSheet(context),
         ),
         const _TutorialOverlay(),
       ],
     );
   }
+}
 
-  void _showAddTransactionSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+class _DashboardBootstrap extends ConsumerWidget {
+  const _DashboardBootstrap();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(defaultCashbookProvider);
+    return const SizedBox.shrink();
+  }
+}
+
+class _DashboardScaffold extends ConsumerWidget {
+  final VoidCallback onAddTransaction;
+
+  const _DashboardScaffold({required this.onAddTransaction});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: colorScheme.surfaceContainerLowest,
+      appBar: AppBar(
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        elevation: 0,
+        title: const _CashbookSwitcher(),
+        actions: const [_DashboardAvatar()],
       ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.outline,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            // Title
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Tambah Transaksi',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Income Option
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.income,
-                child: const Icon(Icons.arrow_downward, color: Colors.white),
-              ),
-              title: const Text('Pemasukan'),
-              subtitle: const Text('Catat uang masuk'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push(
-                  '/transactions/form',
-                  extra: {'type': TransactionType.income, 'transaction': null},
-                );
-              },
-            ),
-            // Expense Option
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.expense,
-                child: const Icon(Icons.arrow_upward, color: Colors.white),
-              ),
-              title: const Text('Pengeluaran'),
-              subtitle: const Text('Catat uang keluar'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push(
-                  '/transactions/form',
-                  extra: {'type': TransactionType.expense, 'transaction': null},
-                );
-              },
-            ),
-            // Transfer Option
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppColors.transfer,
-                child: const Icon(Icons.swap_horiz, color: Colors.white),
-              ),
-              title: const Text('Transfer'),
-              subtitle: const Text('Pindahkan saldo antar dompet'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/transfer');
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(walletsProvider);
+          ref.invalidate(totalBalanceProvider);
+          ref.invalidate(monthlySummaryProvider);
+          await Future.wait([
+            ref
+                .read(walletsProvider.future)
+                .catchError((_) => <WalletEntity>[]),
+            ref.read(totalBalanceProvider.future).catchError((_) => 0),
+            ref
+                .read(monthlySummaryProvider.future)
+                .catchError((_) => <String, int>{}),
+          ]);
+        },
+        child: const _DashboardBody(),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: onAddTransaction,
+        icon: const Icon(Icons.add),
+        label: const Text('Transaksi Baru'),
+      ),
+      bottomNavigationBar: const _DashboardBottomNav(),
+    );
+  }
+}
+
+class _DashboardBody extends StatelessWidget {
+  const _DashboardBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          _TotalBalanceCard(),
+          SizedBox(height: 16),
+          _MonthlySection(),
+          SizedBox(height: 8),
+          _WalletSection(),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardAvatar extends ConsumerWidget {
+  const _DashboardAvatar();
+
+  String _initial(String? displayName) {
+    final trimmed = displayName?.trim();
+    if (trimmed == null || trimmed.isEmpty) return '?';
+    return trimmed.substring(0, 1).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUserAsync = ref.watch(currentUserProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return currentUserAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (user) => Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: CircleAvatar(
+          backgroundColor: colorScheme.primaryContainer,
+          child: Text(
+            _initial(user?.displayName),
+            style: TextStyle(color: colorScheme.onPrimaryContainer),
+          ),
         ),
       ),
     );
   }
+}
+
+class _DashboardBottomNav extends StatelessWidget {
+  const _DashboardBottomNav();
+
+  @override
+  Widget build(BuildContext context) {
+    return BottomNavigationBar(
+      currentIndex: 0,
+      type: BottomNavigationBarType.fixed,
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            break;
+          case 1:
+            context.push('/transactions');
+            break;
+          case 2:
+            context.push('/report/monthly');
+            break;
+          case 3:
+            context.push('/settings');
+            break;
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined),
+          activeIcon: Icon(Icons.home),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.receipt_long_outlined),
+          activeIcon: Icon(Icons.receipt_long),
+          label: 'Transaksi',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.bar_chart_outlined),
+          activeIcon: Icon(Icons.bar_chart),
+          label: 'Laporan',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.settings_outlined),
+          activeIcon: Icon(Icons.settings),
+          label: 'Pengaturan',
+        ),
+      ],
+    );
+  }
+}
+
+void _showAddTransactionSheet(BuildContext context) {
+  final colorScheme = Theme.of(context).colorScheme;
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: colorScheme.outline,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              'Tambah Transaksi',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: colorScheme.primaryContainer,
+              child: Icon(
+                Icons.arrow_downward,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+            title: const Text('Pemasukan'),
+            subtitle: const Text('Catat uang masuk'),
+            onTap: () {
+              Navigator.pop(context);
+              context.push(
+                '/transactions/form',
+                extra: {'type': TransactionType.income, 'transaction': null},
+              );
+            },
+          ),
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: colorScheme.errorContainer,
+              child: Icon(
+                Icons.arrow_upward,
+                color: colorScheme.onErrorContainer,
+              ),
+            ),
+            title: const Text('Pengeluaran'),
+            subtitle: const Text('Catat uang keluar'),
+            onTap: () {
+              Navigator.pop(context);
+              context.push(
+                '/transactions/form',
+                extra: {'type': TransactionType.expense, 'transaction': null},
+              );
+            },
+          ),
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: colorScheme.secondaryContainer,
+              child: Icon(
+                Icons.swap_horiz,
+                color: colorScheme.onSecondaryContainer,
+              ),
+            ),
+            title: const Text('Transfer'),
+            subtitle: const Text('Pindahkan saldo antar dompet'),
+            onTap: () {
+              Navigator.pop(context);
+              context.push('/transfer');
+            },
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Cashbook Switcher (AppBar title)
 // ---------------------------------------------------------------------------
 
-class _CashbookSwitcher extends StatelessWidget {
-  final CashbookEntity? activeCashbook;
-  final AsyncValue<List<CashbookEntity>> cashbooksAsync;
-  final WidgetRef ref;
+class _CashbookSwitcher extends ConsumerWidget {
+  const _CashbookSwitcher();
 
-  const _CashbookSwitcher({
-    required this.activeCashbook,
-    required this.cashbooksAsync,
-    required this.ref,
-  });
-
-  void _showBottomSheet(BuildContext context, List<CashbookEntity> cashbooks) {
+  void _showBottomSheet(
+    BuildContext context,
+    WidgetRef ref,
+    CashbookEntity? activeCashbook,
+    List<CashbookEntity> cashbooks,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -267,7 +307,7 @@ class _CashbookSwitcher extends StatelessWidget {
                 leading: Icon(
                   Icons.book_outlined,
                   color: cb.cashbookId == activeCashbook?.cashbookId
-                      ? AppColors.primary
+                      ? colorScheme.primary
                       : null,
                 ),
                 title: Text(cb.cashbookName),
@@ -278,7 +318,7 @@ class _CashbookSwitcher extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.12),
+                          color: colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Text(
@@ -291,7 +331,7 @@ class _CashbookSwitcher extends StatelessWidget {
                       )
                     : null,
                 selected: cb.cashbookId == activeCashbook?.cashbookId,
-                selectedColor: AppColors.primary,
+                selectedColor: colorScheme.primary,
                 onTap: () {
                   ref.read(activeCashbookProvider.notifier).state = cb;
                   Navigator.pop(context);
@@ -320,11 +360,16 @@ class _CashbookSwitcher extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeCashbook = ref.watch(activeCashbookProvider);
+    final cashbooksAsync = ref.watch(cashbooksProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: () {
         cashbooksAsync.whenData(
-          (cashbooks) => _showBottomSheet(context, cashbooks),
+          (cashbooks) =>
+              _showBottomSheet(context, ref, activeCashbook, cashbooks),
         );
       },
       child: Row(
@@ -332,14 +377,14 @@ class _CashbookSwitcher extends StatelessWidget {
         children: [
           Text(
             activeCashbook?.cashbookName ?? 'Pilih Buku Kas',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: colorScheme.onSurface,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.arrow_drop_down, color: Colors.white),
+          Icon(Icons.arrow_drop_down, color: colorScheme.onSurface),
         ],
       ),
     );
@@ -350,20 +395,21 @@ class _CashbookSwitcher extends StatelessWidget {
 // Total Balance Card
 // ---------------------------------------------------------------------------
 
-class _TotalBalanceCard extends StatelessWidget {
-  final AsyncValue<int> totalBalanceAsync;
-
-  const _TotalBalanceCard({required this.totalBalanceAsync});
+class _TotalBalanceCard extends ConsumerWidget {
+  const _TotalBalanceCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final totalBalanceAsync = ref.watch(totalBalanceProvider);
+
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [colorScheme.primaryContainer, colorScheme.primary],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
@@ -378,25 +424,55 @@ class _TotalBalanceCard extends StatelessWidget {
             'Total Saldo',
             style: Theme.of(
               context,
-            ).textTheme.labelLarge?.copyWith(color: Colors.white70),
+            ).textTheme.labelLarge?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                ),
           ),
           const SizedBox(height: 6),
-          totalBalanceAsync.when(
-            loading: () => const CircularProgressIndicator(color: Colors.white),
-            error: (_, __) => const Text(
-              'â€”',
-              style: TextStyle(color: Colors.white, fontSize: 28),
-            ),
-            data: (total) => Text(
-              CurrencyFormatter.format(total),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: totalBalanceAsync.when(
+              loading: () =>
+                  const _TotalBalanceLoading(key: ValueKey('loading')),
+              error: (_, __) => const Text(
+                'â€”',
+                key: ValueKey('error'),
+                style: TextStyle(color: Colors.white, fontSize: 28),
+              ),
+              data: (total) => Text(
+                CurrencyFormatter.format(total),
+                key: ValueKey(total),
+                style: TextStyle(
+                  color: colorScheme.onPrimaryContainer,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TotalBalanceLoading extends StatelessWidget {
+  const _TotalBalanceLoading({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 38,
+      width: 140,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        width: 120,
+        height: 24,
+        decoration: BoxDecoration(
+          color: colorScheme.onPrimaryContainer.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
@@ -411,6 +487,7 @@ class _MonthlySection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final summaryAsync = ref.watch(monthlySummaryProvider);
     final selectedMonth = ref.watch(selectedMonthProvider);
 
@@ -429,38 +506,84 @@ class _MonthlySection extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          summaryAsync.when(
-            loading: () => const SizedBox(
-              height: 80,
-              child: Center(child: CircularProgressIndicator()),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: summaryAsync.when(
+              loading: () =>
+                  const _MonthlySummaryLoading(key: ValueKey('loading')),
+              error: (_, __) =>
+                  const SizedBox(height: 80, key: ValueKey('error')),
+              data: (summary) {
+                final income = summary['income'] ?? 0;
+                final expense = summary['expense'] ?? 0;
+                return Row(
+                  key: ValueKey('$income:$expense'),
+                  children: [
+                    Expanded(
+                      child: _SummaryTile(
+                        label: 'Pemasukan',
+                        amount: income,
+                        icon: Icons.arrow_downward,
+                        color: colorScheme.primary,
+                        backgroundColor: colorScheme.surfaceContainerHigh,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryTile(
+                        label: 'Pengeluaran',
+                        amount: expense,
+                        icon: Icons.arrow_upward,
+                        color: colorScheme.secondary,
+                        backgroundColor: colorScheme.surfaceContainerHigh,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-            error: (_, __) => const SizedBox(height: 80),
-            data: (summary) {
-              final income = summary['income'] ?? 0;
-              final expense = summary['expense'] ?? 0;
-              return Row(
-                children: [
-                  Expanded(
-                    child: _SummaryTile(
-                      label: 'Pemasukan',
-                      amount: income,
-                      icon: Icons.arrow_downward,
-                      color: AppColors.income,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SummaryTile(
-                      label: 'Pengeluaran',
-                      amount: expense,
-                      icon: Icons.arrow_upward,
-                      color: AppColors.expense,
-                    ),
-                  ),
-                ],
-              );
-            },
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthlySummaryLoading extends StatelessWidget {
+  const _MonthlySummaryLoading({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: const [
+        Expanded(child: _SummaryTilePlaceholder()),
+        SizedBox(width: 12),
+        Expanded(child: _SummaryTilePlaceholder()),
+      ],
+    );
+  }
+}
+
+class _SummaryTilePlaceholder extends StatelessWidget {
+  const _SummaryTilePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 72,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(width: 64, height: 10, color: colorScheme.outlineVariant),
+          const SizedBox(height: 12),
+          Container(width: 88, height: 16, color: colorScheme.outlineVariant),
         ],
       ),
     );
@@ -472,19 +595,22 @@ class _SummaryTile extends StatelessWidget {
   final int amount;
   final IconData icon;
   final Color color;
+  final Color backgroundColor;
 
   const _SummaryTile({
     required this.label,
     required this.amount,
     required this.icon,
     required this.color,
+    required this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
-      color: color.withValues(alpha: 0.08),
+      color: backgroundColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -497,9 +623,10 @@ class _SummaryTile extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: color),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -507,7 +634,7 @@ class _SummaryTile extends StatelessWidget {
             Text(
               CurrencyFormatter.format(amount),
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: color,
+                color: colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -522,13 +649,14 @@ class _SummaryTile extends StatelessWidget {
 // Wallet Section
 // ---------------------------------------------------------------------------
 
-class _WalletSection extends StatelessWidget {
-  final AsyncValue<List<WalletEntity>> walletsAsync;
-
-  const _WalletSection({required this.walletsAsync});
+class _WalletSection extends ConsumerWidget {
+  const _WalletSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final walletsAsync = ref.watch(walletsProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -545,72 +673,130 @@ class _WalletSection extends StatelessWidget {
             ],
           ),
         ),
-        walletsAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (_, __) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Gagal memuat dompet',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: walletsAsync.when(
+            loading: () => const Padding(
+              key: ValueKey('loading'),
+              padding: EdgeInsets.all(16),
+              child: _WalletLoadingStrip(),
             ),
-          ),
-          data: (wallets) {
-            if (wallets.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+            error: (_, __) => Padding(
+              key: const ValueKey('error'),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Gagal memuat dompet',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
-                child: Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: AppColors.outlineVariant),
+              ),
+            ),
+            data: (wallets) {
+              if (wallets.isEmpty) {
+                return Padding(
+                  key: const ValueKey('empty'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.account_balance_wallet_outlined,
-                            size: 40,
-                            color: AppColors.textTertiary,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Belum ada dompet',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: AppColors.textSecondary),
-                          ),
-                          TextButton(
-                            onPressed: () => context.push('/wallets'),
-                            child: const Text('Tambah Dompet'),
-                          ),
-                        ],
+                  child: Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: colorScheme.outlineVariant),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.account_balance_wallet_outlined,
+                              size: 40,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Belum ada dompet',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: colorScheme.onSurfaceVariant),
+                            ),
+                            TextButton(
+                              onPressed: () => context.push('/wallets'),
+                              child: const Text('Tambah Dompet'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
+                );
+              }
+              return SizedBox(
+                key: ValueKey(wallets.length),
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: wallets.length,
+                  itemBuilder: (_, index) =>
+                      _WalletCard(wallet: wallets[index]),
                 ),
               );
-            }
-            return SizedBox(
-              height: 120,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: wallets.length,
-                itemBuilder: (_, index) => _WalletCard(wallet: wallets[index]),
-              ),
-            );
-          },
+            },
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _WalletLoadingStrip extends StatelessWidget {
+  const _WalletLoadingStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 120,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        itemBuilder: (_, __) => Container(
+          width: 160,
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  color: colorScheme.outlineVariant,
+                ),
+                const Spacer(),
+                Container(
+                  width: 96,
+                  height: 12,
+                  color: colorScheme.outlineVariant,
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: 72,
+                  height: 10,
+                  color: colorScheme.outlineVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -624,14 +810,15 @@ class _WalletCard extends StatelessWidget {
 
   const _WalletCard({required this.wallet});
 
-  Color _cardColor(WalletType type) {
+  Color _cardColor(BuildContext context, WalletType type) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     switch (type) {
       case WalletType.cash:
-        return AppColors.success;
+        return isDark ? AppColors.darkMintContainer : AppColors.mint;
       case WalletType.bankAcc:
-        return AppColors.primary;
+        return isDark ? AppColors.darkPrimaryContainer : AppColors.primary;
       case WalletType.eWallet:
-        return AppColors.transfer;
+        return isDark ? AppColors.darkLavenderContainer : AppColors.lavender;
     }
   }
 
@@ -648,7 +835,10 @@ class _WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _cardColor(wallet.type);
+    final color = _cardColor(context, wallet.type);
+    final foregroundColor = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
 
     return GestureDetector(
       onTap: () => context.push('/wallets/detail', extra: wallet),
@@ -660,19 +850,19 @@ class _WalletCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [color, color.withValues(alpha: 0.75)],
+            colors: [color, color.withValues(alpha: 0.82)],
           ),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(_cardIcon(wallet.type), color: Colors.white, size: 24),
+            Icon(_cardIcon(wallet.type), color: foregroundColor, size: 24),
             const Spacer(),
             Text(
               wallet.walletName,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: foregroundColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -682,7 +872,7 @@ class _WalletCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               CurrencyFormatter.format(wallet.currentBalance),
-              style: const TextStyle(color: Colors.white, fontSize: 12),
+              style: TextStyle(color: foregroundColor, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

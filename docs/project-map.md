@@ -6,6 +6,7 @@
 |---|---|
 | `pubspec.yaml` | Flutter dependencies; key packages: flutter_riverpod, go_router, supabase_flutter, drift, intl, fl_chart |
 | `lib/main.dart` | App entry point; locale init, Supabase init, ProviderScope, MaterialApp.router |
+| `lib/core/constants/app_colors.dart` | `AppColors` — primary dark teal, lavender/lime accents, soft mint/peach neutrals, semantic status colors |
 | `AGENTS.md` | AI agent entry point — start here for orientation |
 
 ---
@@ -24,7 +25,7 @@
 ```
 core/
 ├── constants/
-│   ├── app_colors.dart       AppColors — primary, income, expense, transfer, category palette
+│   ├── app_colors.dart       AppColors — primary dark teal, lavender/lime accents, mint/peach neutrals, income, expense, transfer, category palette
 │   ├── app_strings.dart      AppStrings — all Indonesian UI text
 │   ├── supabase_keys.dart    SupabaseKeys.supabaseUrl / .supabaseAnonKey
 │   └── constants.dart        barrel re-export
@@ -85,6 +86,8 @@ screens/
 │   ├── landing_screen.dart      LandingScreen — public entry, fade+slide animation
 │   ├── login_screen.dart        LoginScreen — email/password sign-in
 │   └── register_screen.dart     RegisterScreen — sign-up + first-time setup wizard
+├── splash/
+│   └── loading_screen.dart      LoadingScreen — pre-warm providers before dashboard
 ├── dashboard/
 │   └── dashboard_screen.dart    DashboardScreen — balance overview, month summary, wallet list
 ├── cashbook/
@@ -95,7 +98,7 @@ screens/
 │   ├── wallet_form_screen.dart
 │   └── wallet_detail_screen.dart
 ├── transaction/
-│   ├── transaction_list_screen.dart   Filter by type + month; grouped by date
+│   ├── transaction_list_screen.dart   Filter by type + month; grouped by date via derived provider
 │   ├── transaction_form_screen.dart   Create/edit income or expense
 │   └── transaction_detail_screen.dart
 ├── transfer/
@@ -132,9 +135,10 @@ screens/
 | Feature | Screen | Provider(s) | Repository |
 |---|---|---|---|
 | Auth | `screens/auth/` | `authStateProvider`, `currentUserProvider` | Supabase Auth (direct) |
+| Loading / prewarm | `screens/splash/loading_screen.dart` | `defaultCashbookProvider`, `cashbooksProvider`, `walletsProvider` | CashbookRepository, WalletRepository |
 | Dashboard | `screens/dashboard/` | `defaultCashbookProvider`, `totalBalanceProvider`, `monthlySummaryProvider`, `walletsProvider` | CashbookRepository, WalletRepository |
 | Cashbooks | `screens/cashbook/` | `cashbooksProvider`, `activeCashbookProvider` | CashbookRepository |
 | Wallets | `screens/wallet/` | `walletsProvider`, `totalBalanceProvider` | WalletRepository |
-| Transactions | `screens/transaction/` | `transactionsProvider`, `transactionFilterProvider`, `selectedMonthProvider` | TransactionRepository |
+| Transactions | `screens/transaction/` | `transactionsProvider`, `transactionListItemsProvider`, `transactionFilterProvider`, `selectedMonthProvider` | TransactionRepository |
 | Categories | (picker sheet inside transaction form) | `categoriesProvider` | TransactionRepository |
 | Transfer | `screens/transfer/transfer_screen.dart` | `transfersProvider` | TransactionRepository |

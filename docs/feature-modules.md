@@ -53,6 +53,8 @@
 - `totalBalanceProvider` sums all `current_balance` values from `walletsProvider`
 - `monthlySummaryProvider` queries transactions grouped by type for the current month
 - `_TutorialOverlay` tidak tampil selama provider masih loading (hardened race condition guard)
+- Section loading dashboard memakai transisi ringan (`AnimatedSwitcher`) dan placeholder visual agar perubahan loading → data terasa lebih natural
+- Visual shell dashboard, loading, dan subcard sekarang membaca `ColorScheme` agar dark palette baru ikut terpropagasi ke background, app bar, bottom sheet, summary card, wallet card, dan loading skeleton.
 
 ### Data Layer
 - `CashbookRepository.getEarliestCashbook(userId)` — order `created_at ASC`, `maybeSingle`
@@ -102,6 +104,9 @@
 - `_walletMonthlySummaryProvider` — local FutureProvider.family for per-wallet monthly summary
 - `_walletTransactionsProvider` — local FutureProvider.family for per-wallet transaction list
 
+### UX Notes
+- Wallet detail memakai placeholder loading ringan untuk summary dan riwayat transaksi, bukan spinner penuh
+
 ### Business Logic
 - Wallet types: `cash`, `bankAcc`, `eWallet` (from `WalletType` enum)
 - `current_balance` is auto-updated by Supabase triggers on transaction insert/delete
@@ -138,8 +143,13 @@
 - `transactionFilterProvider` (`StateProvider`) holds current `type` filter and `month`
 - `selectedMonthProvider` (`StateProvider<DateTime>`) drives month display
 - `transactionsProvider` reads both filter providers and queries accordingly
+- `transactionListItemsProvider` precomputes grouped rows so UI build tidak perlu melakukan grouping ulang
 - `TransactionDetailScreen` refreshes detail data from database via `transactionDetailProvider(transactionId)` to ensure wallet/category/description fields stay accurate
 - After any mutation: must invalidate `transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`
+- Shared `TransactionTile`, list filter chips, summary bar, and detail header now use theme-aware surfaces/text so dark mode tidak lagi menahan warna light palette.
+
+### UX Notes
+- Transaction list memakai placeholder loading untuk summary bar dan daftar transaksi agar refresh/load terasa lebih ringan
 
 ### Data Layer
 - `TransactionRepository.createTransaction()` — inserts and returns entity
@@ -205,12 +215,16 @@
 - `_PieChartSection` + `_TypeToggle` + `_CategoryLegend` — pie chart breakdown kategori
 - `_BarChartSection` + `_LegendDot` — bar chart tren 12 bulan
 
+### UX Notes
+- Seluruh shell laporan dan kartu chart kini memakai `ColorScheme` aktif, sehingga background, card, toggle, legend, dan loading placeholder mengikuti palette dark baru.
+
 ### Business Logic
 - `reportMonthProvider` (`StateProvider<DateTime>`) — bulan aktif di laporan
 - `reportMonthlySummaryProvider` — total income/expense bulan terpilih
 - `reportCategoryBreakdownProvider` — breakdown per kategori berdasarkan tipe
 - `reportYearlyTrendProvider` — data 12 bulan untuk bar chart
 - Route `/report/monthly` — terdaftar di router
+- Loading summary/chart memakai transisi halus dan placeholder visual sebelum data siap
 
 ### Yang Belum
 - P3: perbandingan bulan & export PDF

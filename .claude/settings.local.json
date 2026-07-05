@@ -1,0 +1,19 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+    "ANTHROPIC_AUTH_TOKEN": "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",
+    "ANTHROPIC_API_KEY": "",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "nvidia/nemotron-3-super-120b-a12b:free",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "openai/gpt-oss-120b:free",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "ANTHROPIC_MODEL": "nvidia/nemotron-3-ultra-550b-a55b:free"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze *)",
+      "Bash(flutter build *)",
+      "Bash(flutter pub *)"
+    ]
+  }
+}

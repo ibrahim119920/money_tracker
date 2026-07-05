@@ -42,42 +42,54 @@ class MonthlyReportScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: colorScheme.surfaceContainerLowest,
+      appBar: AppBar(
+        title: const Text('Laporan Keuangan'),
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        elevation: 0,
+      ),
+      body: const _MonthlyReportBody(),
+    );
+  }
+}
+
+class _MonthlyReportBody extends ConsumerWidget {
+  const _MonthlyReportBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final selectedMonth = ref.watch(reportMonthProvider);
     final activeCashbook = ref.watch(activeCashbookProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Laporan Keuangan'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: activeCashbook == null
-          ? const Center(child: Text('Buku kas tidak ditemukan'))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _MonthPicker(selectedMonth: selectedMonth),
-                const SizedBox(height: 16),
-                _SummarySection(
-                  selectedMonth: selectedMonth,
-                  cashbookId: activeCashbook.cashbookId,
-                ),
-                const SizedBox(height: 24),
-                _PieChartSection(
-                  selectedMonth: selectedMonth,
-                  cashbookId: activeCashbook.cashbookId,
-                ),
-                const SizedBox(height: 24),
-                _BarChartSection(
-                  cashbookId: activeCashbook.cashbookId,
-                  year: selectedMonth.year,
-                  selectedMonth: selectedMonth.month,
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
+    if (activeCashbook == null) {
+      return const Center(child: Text('Buku kas tidak ditemukan'));
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _MonthPicker(selectedMonth: selectedMonth),
+        const SizedBox(height: 16),
+        _SummarySection(
+          selectedMonth: selectedMonth,
+          cashbookId: activeCashbook.cashbookId,
+        ),
+        const SizedBox(height: 24),
+        _PieChartSection(
+          selectedMonth: selectedMonth,
+          cashbookId: activeCashbook.cashbookId,
+        ),
+        const SizedBox(height: 24),
+        _BarChartSection(
+          cashbookId: activeCashbook.cashbookId,
+          year: selectedMonth.year,
+          selectedMonth: selectedMonth.month,
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 }
@@ -92,15 +104,16 @@ class _MonthPicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final monthName =
         MonthlyReportScreen._monthNamesFull[selectedMonth.month - 1];
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -119,10 +132,10 @@ class _MonthPicker extends ConsumerWidget {
             onTap: () => _showMonthYearPicker(context, ref, selectedMonth),
             child: Text(
               '$monthName ${selectedMonth.year}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -184,6 +197,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -194,7 +208,10 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
           ),
           Text(
             '$_selectedYear',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
@@ -224,18 +241,20 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
               child: Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  color: isSelected ? colorScheme.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isSelected
-                        ? AppColors.primary
-                        : AppColors.outlineVariant,
+                        ? colorScheme.primary
+                        : colorScheme.outlineVariant,
                   ),
                 ),
                 child: Text(
                   MonthlyReportScreen._monthNames[i],
                   style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.textPrimary,
+                    color: isSelected
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurface,
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -265,56 +284,139 @@ class _SummarySection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final summaryAsync = ref.watch(reportMonthlySummaryProvider(selectedMonth));
 
-    return summaryAsync.when(
-      loading: () => const SizedBox(
-        height: 100,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Text('Gagal memuat ringkasan: $e'),
-      data: (summary) {
-        final income = summary['income'] ?? 0;
-        final expense = summary['expense'] ?? 0;
-        final net = income - expense;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Ringkasan Bulan Ini',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      child: summaryAsync.when(
+        loading: () => const _SummaryLoadingState(key: ValueKey('loading')),
+        error: (e, _) => Padding(
+          key: const ValueKey('error'),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text('Gagal memuat ringkasan: $e'),
+        ),
+        data: (summary) {
+          final income = summary['income'] ?? 0;
+          final expense = summary['expense'] ?? 0;
+          final net = income - expense;
+          return Column(
+            key: const ValueKey('data'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ringkasan Bulan Ini',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _SummaryCard(
-                    label: 'Pemasukan',
-                    amount: income,
-                    color: AppColors.income,
-                    icon: Icons.arrow_downward,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SummaryCard(
+                      label: 'Pemasukan',
+                      amount: income,
+                      color: colorScheme.primary,
+                      backgroundColor: colorScheme.surfaceContainerHigh,
+                      icon: Icons.arrow_downward,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _SummaryCard(
-                    label: 'Pengeluaran',
-                    amount: expense,
-                    color: AppColors.expense,
-                    icon: Icons.arrow_upward,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _SummaryCard(
+                      label: 'Pengeluaran',
+                      amount: expense,
+                      color: colorScheme.secondary,
+                      backgroundColor: colorScheme.surfaceContainerHigh,
+                      icon: Icons.arrow_upward,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _NetCard(net: net),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _NetCard(net: net),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SummaryLoadingState extends StatelessWidget {
+  const _SummaryLoadingState({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ringkasan Bulan Ini',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: const [
+            Expanded(child: _LoadingMetricCard()),
+            SizedBox(width: 8),
+            Expanded(child: _LoadingMetricCard()),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 8),
+        const _LoadingNetCard(),
+      ],
+    );
+  }
+}
+
+class _LoadingMetricCard extends StatelessWidget {
+  const _LoadingMetricCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 84,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(width: 72, height: 10, color: colorScheme.outlineVariant),
+          const SizedBox(height: 12),
+          Container(width: 90, height: 18, color: colorScheme.outlineVariant),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingNetCard extends StatelessWidget {
+  const _LoadingNetCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      height: 52,
+      decoration: BoxDecoration(
+        color: colorScheme.outlineVariant.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(12),
+      ),
     );
   }
 }
@@ -323,23 +425,26 @@ class _SummaryCard extends StatelessWidget {
   final String label;
   final int amount;
   final Color color;
+  final Color backgroundColor;
   final IconData icon;
 
   const _SummaryCard({
     required this.label,
     required this.amount,
     required this.color,
+    required this.backgroundColor,
     required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,7 +464,8 @@ class _SummaryCard extends StatelessWidget {
                 label,
                 style: const TextStyle(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -370,7 +476,7 @@ class _SummaryCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: color,
+              color: colorScheme.onSurface,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -388,17 +494,19 @@ class _NetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isPositive = net >= 0;
-    final color = isPositive ? AppColors.income : AppColors.expense;
+    final background = isPositive ? colorScheme.primaryContainer : colorScheme.secondaryContainer;
+    final accent = isPositive ? colorScheme.primary : colorScheme.secondary;
     final label = isPositive ? 'Surplus' : 'Defisit';
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -408,7 +516,7 @@ class _NetCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: color,
+              color: colorScheme.onPrimaryContainer,
             ),
           ),
           Text(
@@ -416,7 +524,7 @@ class _NetCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: color,
+              color: colorScheme.onPrimaryContainer,
             ),
           ),
         ],
@@ -447,6 +555,7 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final breakdownAsync = ref.watch(
       reportCategoryBreakdownProvider((
         cashbookId: widget.cashbookId,
@@ -458,9 +567,9 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -479,7 +588,7 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
               // Toggle income/expense
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
+                  color: colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -488,14 +597,14 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
                     _TypeToggle(
                       label: 'Keluar',
                       isSelected: _activeType == TransactionType.expense,
-                      color: AppColors.expense,
+                      color: colorScheme.error,
                       onTap: () =>
                           setState(() => _activeType = TransactionType.expense),
                     ),
                     _TypeToggle(
                       label: 'Masuk',
                       isSelected: _activeType == TransactionType.income,
-                      color: AppColors.income,
+                      color: colorScheme.primary,
                       onTap: () =>
                           setState(() => _activeType = TransactionType.income),
                     ),
@@ -505,88 +614,95 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
             ],
           ),
           const SizedBox(height: 16),
-          breakdownAsync.when(
-            loading: () => const SizedBox(
-              height: 160,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (e, _) => Text('Gagal memuat data: $e'),
-            data: (items) {
-              if (items.isEmpty) {
-                return SizedBox(
-                  height: 120,
-                  child: Center(
-                    child: Text(
-                      'Tidak ada data ${_activeType == TransactionType.expense ? 'pengeluaran' : 'pemasukan'}',
-                      style: const TextStyle(color: AppColors.textSecondary),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: breakdownAsync.when(
+              loading: () =>
+                  const _PieChartLoadingState(key: ValueKey('loading')),
+              error: (e, _) => Padding(
+                key: const ValueKey('error'),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text('Gagal memuat data: $e'),
+              ),
+              data: (items) {
+                if (items.isEmpty) {
+                  return SizedBox(
+                    key: const ValueKey('empty'),
+                    height: 120,
+                    child: Center(
+                      child: Text(
+                        'Tidak ada data ${_activeType == TransactionType.expense ? 'pengeluaran' : 'pemasukan'}',
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
                     ),
-                  ),
+                  );
+                }
+
+                final total = items.fold<int>(
+                  0,
+                  (sum, item) => sum + (item['amount'] as int),
                 );
-              }
+                final sections = _buildPieSections(items, total);
 
-              final total = items.fold<int>(
-                0,
-                (sum, item) => sum + (item['amount'] as int),
-              );
-              final sections = _buildPieSections(items, total);
-
-              return Column(
-                children: [
-                  SizedBox(
-                    height: 200,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        PieChart(
-                          PieChartData(
-                            sections: sections,
-                            centerSpaceRadius: 52,
-                            sectionsSpace: 2,
-                            pieTouchData: PieTouchData(
-                              touchCallback: (event, response) {
-                                setState(() {
-                                  if (!event.isInterestedForInteractions ||
-                                      response == null ||
-                                      response.touchedSection == null) {
-                                    _touchedIndex = null;
-                                    return;
-                                  }
-                                  _touchedIndex = response
-                                      .touchedSection!
-                                      .touchedSectionIndex;
-                                });
-                              },
+                return Column(
+                  key: const ValueKey('data'),
+                  children: [
+                    SizedBox(
+                      height: 200,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          PieChart(
+                            PieChartData(
+                              sections: sections,
+                              centerSpaceRadius: 52,
+                              sectionsSpace: 2,
+                              pieTouchData: PieTouchData(
+                                touchCallback: (event, response) {
+                                  setState(() {
+                                    if (!event.isInterestedForInteractions ||
+                                        response == null ||
+                                        response.touchedSection == null) {
+                                      _touchedIndex = null;
+                                      return;
+                                    }
+                                    _touchedIndex = response
+                                        .touchedSection!
+                                        .touchedSectionIndex;
+                                  });
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Total',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Total',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                            Text(
-                              CurrencyFormatter.formatCompact(total),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                              Text(
+                                CurrencyFormatter.formatCompact(total),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _CategoryLegend(items: items, total: total),
-                ],
-              );
-            },
+                    const SizedBox(height: 16),
+                    _CategoryLegend(items: items, total: total),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -643,6 +759,7 @@ class _TypeToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -656,7 +773,7 @@ class _TypeToggle extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : AppColors.textSecondary,
+            color: isSelected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -673,6 +790,7 @@ class _CategoryLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayItems = items.take(6).toList();
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
       children: displayItems.map((item) {
@@ -694,27 +812,27 @@ class _CategoryLegend extends StatelessWidget {
               Expanded(
                 child: Text(
                   categoryName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
                 '${percentage.toStringAsFixed(1)}%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 CurrencyFormatter.format(amount),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],
@@ -734,6 +852,51 @@ class _CategoryLegend extends StatelessWidget {
   }
 }
 
+class _PieChartLoadingState extends StatelessWidget {
+  const _PieChartLoadingState({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Center(
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...List.generate(
+          3,
+          (index) => Padding(
+            padding: EdgeInsets.only(bottom: index == 2 ? 0 : 8),
+            child: Container(
+              height: 14,
+              decoration: BoxDecoration(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ============================================================================
 // Bar Chart — 12-Month Trend (P2)
 // ============================================================================
@@ -750,6 +913,7 @@ class _BarChartSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final trendAsync = ref.watch(
       reportYearlyTrendProvider((cashbookId: cashbookId, year: year)),
     );
@@ -757,146 +921,161 @@ class _BarChartSection extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Tren $year',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              _LegendDot(color: AppColors.income, label: 'Pemasukan'),
+              _LegendDot(color: colorScheme.primary, label: 'Pemasukan'),
               const SizedBox(width: 16),
-              _LegendDot(color: AppColors.expense, label: 'Pengeluaran'),
+              _LegendDot(color: colorScheme.error, label: 'Pengeluaran'),
             ],
           ),
           const SizedBox(height: 16),
-          trendAsync.when(
-            loading: () => const SizedBox(
-              height: 160,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (e, _) => Text('Gagal memuat data: $e'),
-            data: (months) {
-              if (months.every((m) => m['income'] == 0 && m['expense'] == 0)) {
-                return const SizedBox(
-                  height: 100,
-                  child: Center(
-                    child: Text(
-                      'Belum ada transaksi tahun ini',
-                      style: TextStyle(color: AppColors.textSecondary),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: trendAsync.when(
+              loading: () =>
+                  const _BarChartLoadingState(key: ValueKey('loading')),
+              error: (e, _) => Padding(
+                key: const ValueKey('error'),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text('Gagal memuat data: $e'),
+              ),
+              data: (months) {
+                if (months.every(
+                  (m) => m['income'] == 0 && m['expense'] == 0,
+                )) {
+                  return const SizedBox(
+                    key: ValueKey('empty'),
+                    height: 100,
+                    child: Center(
+                      child: Text(
+                        'Belum ada transaksi tahun ini',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  );
+                }
+
+                final maxValue = months.fold<double>(1, (max, m) {
+                  final income = (m['income'] ?? 0).toDouble();
+                  final expense = (m['expense'] ?? 0).toDouble();
+                  return [max, income, expense].reduce((a, b) => a > b ? a : b);
+                });
+
+                return SizedBox(
+                  key: const ValueKey('data'),
+                  height: 200,
+                  child: BarChart(
+                    BarChartData(
+                      maxY: maxValue * 1.2,
+                      barGroups: _buildBarGroups(months, colorScheme),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              final month = value.toInt();
+                              if (month < 1 || month > 12) {
+                                return const SizedBox.shrink();
+                              }
+                              final isSelected = month == selectedMonth;
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  MonthlyReportScreen._monthNames[month - 1],
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                      ? colorScheme.primary
+                                      : colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              );
+                            },
+                            reservedSize: 28,
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 52,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0) return const SizedBox.shrink();
+                              return Text(
+                                CurrencyFormatter.formatCompact(value.toInt()),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: maxValue / 4,
+                        getDrawingHorizontalLine: (_) => FlLine(
+                          color: colorScheme.outlineVariant,
+                          strokeWidth: 1,
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      barTouchData: BarTouchData(
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final label = rodIndex == 0 ? 'Masuk' : 'Keluar';
+                            return BarTooltipItem(
+                              '$label\n${CurrencyFormatter.format(rod.toY.toInt())}',
+                              const TextStyle(
+                                fontSize: 11,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
                   ),
                 );
-              }
-
-              final maxValue = months.fold<double>(1, (max, m) {
-                final income = (m['income'] ?? 0).toDouble();
-                final expense = (m['expense'] ?? 0).toDouble();
-                return [max, income, expense].reduce((a, b) => a > b ? a : b);
-              });
-
-              return SizedBox(
-                height: 200,
-                child: BarChart(
-                  BarChartData(
-                    maxY: maxValue * 1.2,
-                    barGroups: _buildBarGroups(months),
-                    titlesData: FlTitlesData(
-                      show: true,
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (value, meta) {
-                            final month = value.toInt();
-                            if (month < 1 || month > 12) {
-                              return const SizedBox.shrink();
-                            }
-                            final isSelected = month == selectedMonth;
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                MonthlyReportScreen._monthNames[month - 1],
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
-                            );
-                          },
-                          reservedSize: 28,
-                        ),
-                      ),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 52,
-                          getTitlesWidget: (value, meta) {
-                            if (value == 0) return const SizedBox.shrink();
-                            return Text(
-                              CurrencyFormatter.formatCompact(value.toInt()),
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: AppColors.textSecondary,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      horizontalInterval: maxValue / 4,
-                      getDrawingHorizontalLine: (_) => FlLine(
-                        color: AppColors.outlineVariant,
-                        strokeWidth: 1,
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    barTouchData: BarTouchData(
-                      touchTooltipData: BarTouchTooltipData(
-                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                          final label = rodIndex == 0 ? 'Masuk' : 'Keluar';
-                          return BarTooltipItem(
-                            '$label\n${CurrencyFormatter.format(rod.toY.toInt())}',
-                            const TextStyle(fontSize: 11, color: Colors.white),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  List<BarChartGroupData> _buildBarGroups(List<Map<String, int>> months) {
+  List<BarChartGroupData> _buildBarGroups(
+    List<Map<String, int>> months,
+    ColorScheme colorScheme,
+  ) {
     return months.map((m) {
       final month = m['month']!;
       final income = (m['income'] ?? 0).toDouble();
@@ -909,13 +1088,13 @@ class _BarChartSection extends ConsumerWidget {
         barRods: [
           BarChartRodData(
             toY: income,
-            color: AppColors.income.withValues(alpha: isSelected ? 1.0 : 0.6),
+            color: colorScheme.primary.withValues(alpha: isSelected ? 1.0 : 0.6),
             width: 6,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),
           BarChartRodData(
             toY: expense,
-            color: AppColors.expense.withValues(alpha: isSelected ? 1.0 : 0.6),
+            color: colorScheme.error.withValues(alpha: isSelected ? 1.0 : 0.6),
             width: 6,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),
@@ -923,6 +1102,42 @@ class _BarChartSection extends ConsumerWidget {
         barsSpace: 3,
       );
     }).toList();
+  }
+}
+
+class _BarChartLoadingState extends StatelessWidget {
+  const _BarChartLoadingState({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(
+          12,
+          (index) => Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Container(
+                height: (index % 4 + 2) * 18,
+                decoration: BoxDecoration(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -934,6 +1149,7 @@ class _LegendDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -945,7 +1161,7 @@ class _LegendDot extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
       ],
     );

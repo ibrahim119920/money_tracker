@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/models/models.dart';
 import '../../data/repositories/cashbook_wallet_repository.dart';
@@ -13,6 +14,11 @@ import '../../domain/entities/entities.dart';
 /// Supabase Client Provider - Base provider untuk semua fitur
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
+});
+
+/// SharedPreferences Provider
+final sharedPreferencesProvider = Provider<Future<SharedPreferences>>((ref) {
+  return SharedPreferences.getInstance();
 });
 
 /// Cashbook Repository Provider
@@ -39,10 +45,36 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return SettingsRepository(client);
 });
 
-/// Theme mode aplikasi (runtime state)
-final appThemeModeProvider = StateProvider<ThemeMode>((ref) {
-  return ThemeMode.light;
-});
+/// Theme mode aplikasi (runtime state with persistence)
+final appThemeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+      final prefs = ref.watch(sharedPreferencesProvider);
+      return ThemeModeNotifier(prefs);
+    });
+
+class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  final Future<SharedPreferences> _prefsFuture;
+  SharedPreferences? _prefs;
+
+  ThemeModeNotifier(this._prefsFuture) : super(ThemeMode.system) {
+    _loadThemeMode();
+  }
+
+  Future<void> _loadThemeMode() async {
+    try {
+      _prefs = await _prefsFuture;
+      final themeIndex = _prefs?.getInt('theme_mode') ?? 0;
+      state = ThemeMode.values[themeIndex];
+    } catch (_) {
+      state = ThemeMode.system;
+    }
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    state = mode;
+    await _prefs?.setInt('theme_mode', mode.index);
+  }
+}
 
 // ============================================================================
 // SETUP / ONBOARDING PROVIDERS
@@ -90,18 +122,13 @@ final activeCashbookProvider = StateProvider<CashbookEntity?>((ref) => null);
 
 /// Cashbooks Provider - Daftar semua cashbook user
 final cashbooksProvider = FutureProvider<List<CashbookEntity>>((ref) async {
-  final client = ref.watch(supabaseClientProvider);
+  final currentUser = await ref.watch(currentUserProvider.future);
+  if (currentUser == null) return [];
+
+  final repository = ref.watch(cashbookRepositoryProvider);
 
   try {
-    final response = await client
-        .from('cashbooks')
-        .select()
-        .order('created_at', ascending: false);
-
-    final cashbooks = (response as List).map(
-      (e) => CashbookModel.fromJson(e).toEntity(),
-    );
-    return cashbooks.toList();
+    return repository.getUserCashbooks(currentUser.userId);
   } catch (e) {
     throw Exception('Failed to fetch cashbooks: $e');
   }
@@ -148,20 +175,10 @@ final walletsProvider = FutureProvider<List<WalletEntity>>((ref) async {
 
   if (activeCashbook == null) return [];
 
-  final client = ref.watch(supabaseClientProvider);
+  final repository = ref.watch(walletRepositoryProvider);
 
   try {
-    final response = await client
-        .from('wallets')
-        .select()
-        .eq('cashbook_id', activeCashbook.cashbookId)
-        .eq('is_active', true)
-        .order('sort_order', ascending: true);
-
-    final wallets = (response as List).map(
-      (e) => WalletModel.fromJson(e).toEntity(),
-    );
-    return wallets.toList();
+    return repository.getWallets(activeCashbook.cashbookId);
   } catch (e) {
     throw Exception('Failed to fetch wallets: $e');
   }
@@ -169,13 +186,11 @@ final walletsProvider = FutureProvider<List<WalletEntity>>((ref) async {
 
 /// Total Balance Provider - Total saldo semua dompet di cashbook aktif
 final totalBalanceProvider = FutureProvider<int>((ref) async {
-  final wallets = await ref.watch(walletsProvider.future);
+  final activeCashbook = ref.watch(activeCashbookProvider);
+  if (activeCashbook == null) return 0;
 
-  int total = 0;
-  for (final wallet in wallets) {
-    total += wallet.currentBalance;
-  }
-  return total;
+  final repository = ref.watch(cashbookRepositoryProvider);
+  return repository.getTotalBalance(activeCashbook.cashbookId);
 });
 
 // ============================================================================
@@ -255,62 +270,87 @@ final transactionFilterProvider = StateProvider<TransactionFilter>((ref) {
   return TransactionFilter.thisMonth();
 });
 
-/// Transactions Provider - Daftar transaksi dengan filter
-final transactionsProvider = FutureProvider<List<TransactionEntity>>((
-  ref,
-) async {
+/// Transactions Provider - Menggunakan StreamProvider untuk Cache-First
+final transactionsProvider = StreamProvider<List<TransactionEntity>>((ref) {
   final activeCashbook = ref.watch(activeCashbookProvider);
   final filter = ref.watch(transactionFilterProvider);
-  final client = ref.watch(supabaseClientProvider);
+  final repository = ref.watch(transactionRepositoryProvider);
 
-  if (activeCashbook == null) return [];
+  if (activeCashbook == null) return const Stream.empty();
 
-  try {
-    var query = client
-        .from('transactions')
-        .select(
-          '*, wallets(wallet_name), categories(category_name, icon, color)',
-        )
-        .eq('cashbook_id', activeCashbook.cashbookId)
-        .eq('is_deleted', false);
-
-    if (filter.type != null) {
-      query = query.eq('type', filter.type!.value);
-    }
-
-    if (filter.walletId != null) {
-      query = query.eq('wallet_id', filter.walletId!);
-    }
-
-    if (filter.categoryId != null) {
-      query = query.eq('category_id', filter.categoryId!);
-    }
-
-    if (filter.startDate != null) {
-      query = query.gte(
-        'transaction_date',
-        filter.startDate!.toIso8601String().split('T')[0],
-      );
-    }
-
-    if (filter.endDate != null) {
-      query = query.lte(
-        'transaction_date',
-        filter.endDate!.toIso8601String().split('T')[0],
-      );
-    }
-
-    final response = await query.order('transaction_date', ascending: false);
-
-    final transactions = (response as List).map((e) {
-      final model = TransactionModel.fromJson(e);
-      return model.toEntity();
-    });
-    return transactions.toList();
-  } catch (e) {
-    throw Exception('Failed to fetch transactions: $e');
-  }
+  // Panggil stream dari repository dengan mem-passing nilai filter
+  return repository.getTransactionsStream(
+    cashbookId: activeCashbook.cashbookId,
+    type: filter.type?.value,
+    walletId: filter.walletId,
+    categoryId: filter.categoryId,
+    startDate: filter.startDate?.toIso8601String().split('T')[0],
+    endDate: filter.endDate?.toIso8601String().split('T')[0],
+  );
 });
+
+/// Item terkelompok untuk daftar transaksi di UI.
+class TransactionListItem {
+  final bool isHeader;
+  final DateTime? date;
+  final TransactionEntity? transaction;
+
+  const TransactionListItem._({
+    required this.isHeader,
+    this.date,
+    this.transaction,
+  });
+
+  factory TransactionListItem.header(DateTime date) {
+    return TransactionListItem._(isHeader: true, date: date);
+  }
+
+  factory TransactionListItem.transaction(TransactionEntity transaction) {
+    return TransactionListItem._(isHeader: false, transaction: transaction);
+  }
+}
+
+bool _isSameDay(DateTime first, DateTime second) {
+  return first.year == second.year &&
+      first.month == second.month &&
+      first.day == second.day;
+}
+
+List<TransactionListItem> _buildTransactionListItems(
+  List<TransactionEntity> transactions,
+) {
+  final items = <TransactionListItem>[];
+  DateTime? currentDate;
+
+  for (final transaction in transactions) {
+    final transactionDate = DateTime(
+      transaction.transactionDate.year,
+      transaction.transactionDate.month,
+      transaction.transactionDate.day,
+    );
+
+    if (currentDate == null || !_isSameDay(transactionDate, currentDate)) {
+      currentDate = transactionDate;
+      items.add(TransactionListItem.header(transactionDate));
+    }
+
+    items.add(TransactionListItem.transaction(transaction));
+  }
+
+  return items;
+}
+
+/// Transaction List Items Provider - Derive data yang sudah dikelompokkan (support Stream)
+final transactionListItemsProvider =
+    Provider<AsyncValue<List<TransactionListItem>>>((ref) {
+      // Watch StreamProvider, otomatis mendapatkan state AsyncValue
+      final transactionsAsync = ref.watch(transactionsProvider);
+
+      // Transformasi List<TransactionEntity> menjadi List<TransactionListItem>
+      return transactionsAsync.whenData((transactions) {
+        return _buildTransactionListItems(transactions);
+      });
+    });
 
 /// Transaction Detail Provider - Detail transaksi by ID (dengan joined wallet & kategori)
 final transactionDetailProvider =
@@ -345,47 +385,17 @@ final selectedMonthProvider = StateProvider<DateTime>((ref) {
 final monthlySummaryProvider = FutureProvider<Map<String, int>>((ref) async {
   final activeCashbook = ref.watch(activeCashbookProvider);
   final selectedMonth = ref.watch(selectedMonthProvider);
-  final client = ref.watch(supabaseClientProvider);
 
   if (activeCashbook == null) {
     return {'income': 0, 'expense': 0};
   }
 
   try {
-    final monthStart = DateTime(selectedMonth.year, selectedMonth.month, 1);
-    final monthEnd = DateTime(selectedMonth.year, selectedMonth.month + 1, 0);
-
-    // Income
-    final incomeResponse = await client
-        .from('transactions')
-        .select('amount')
-        .eq('cashbook_id', activeCashbook.cashbookId)
-        .eq('type', 'income')
-        .eq('is_deleted', false)
-        .gte('transaction_date', monthStart.toIso8601String().split('T')[0])
-        .lte('transaction_date', monthEnd.toIso8601String().split('T')[0]);
-
-    int totalIncome = 0;
-    for (final tx in incomeResponse as List) {
-      totalIncome += (tx['amount'] as int?) ?? 0;
-    }
-
-    // Expense
-    final expenseResponse = await client
-        .from('transactions')
-        .select('amount')
-        .eq('cashbook_id', activeCashbook.cashbookId)
-        .eq('type', 'expense')
-        .eq('is_deleted', false)
-        .gte('transaction_date', monthStart.toIso8601String().split('T')[0])
-        .lte('transaction_date', monthEnd.toIso8601String().split('T')[0]);
-
-    int totalExpense = 0;
-    for (final tx in expenseResponse as List) {
-      totalExpense += (tx['amount'] as int?) ?? 0;
-    }
-
-    return {'income': totalIncome, 'expense': totalExpense};
+    final repository = ref.watch(transactionRepositoryProvider);
+    return repository.getMonthlySummaryForReport(
+      cashbookId: activeCashbook.cashbookId,
+      month: selectedMonth,
+    );
   } catch (e) {
     throw Exception('Failed to fetch monthly summary: $e');
   }

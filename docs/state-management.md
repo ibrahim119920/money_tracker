@@ -15,6 +15,7 @@ These are synchronous; they just wire up dependencies.
 | Provider | Type | Returns |
 |---|---|---|
 | `supabaseClientProvider` | `Provider` | `SupabaseClient` from `Supabase.instance.client` |
+| `sharedPreferencesProvider` | `Provider<Future<SharedPreferences>>` | Future instance dari `SharedPreferences.getInstance()` |
 | `cashbookRepositoryProvider` | `Provider` | `CashbookRepository` (receives client via ref) |
 | `walletRepositoryProvider` | `Provider` | `WalletRepository` |
 | `transactionRepositoryProvider` | `Provider` | `TransactionRepository` |
@@ -33,21 +34,21 @@ These are synchronous; they just wire up dependencies.
 |---|---|---|
 | `setupInProgressProvider` | `StateProvider<bool>` | `false` — set to `true` during onboarding wizard to suppress router redirects |
 | `activeCashbookProvider` | `StateProvider<CashbookEntity?>` | `null` — auto-set by `defaultCashbookProvider` |
-| `appThemeModeProvider` | `StateProvider<ThemeMode>` | `ThemeMode.light` |
+| `appThemeModeProvider` | `StateNotifierProvider<ThemeModeNotifier, ThemeMode>` | `ThemeMode.system` |
 
 ### Tier 4 — Cashbook Data (FutureProvider)
 
 | Provider | Type | Notes |
 |---|---|---|
 | `defaultCashbookProvider` | `FutureProvider` | Loads default cashbook; calls `ref.read(activeCashbookProvider.notifier).state = cashbook` as side effect |
-| `cashbooksProvider` | `FutureProvider<List<CashbookEntity>>` | All cashbooks for current user |
+| `cashbooksProvider` | `FutureProvider<List<CashbookEntity>>` | All cashbooks for current user; delegates to `CashbookRepository.getUserCashbooks()` |
 
 ### Tier 5 — Wallet & Financial Data (FutureProvider)
 
 | Provider | Type | Depends On |
 |---|---|---|
-| `walletsProvider` | `FutureProvider<List<WalletEntity>>` | `activeCashbookProvider` |
-| `totalBalanceProvider` | `FutureProvider<int>` | `walletsProvider` (sums `current_balance`) |
+| `walletsProvider` | `FutureProvider<List<WalletEntity>>` | `activeCashbookProvider`; delegates to `WalletRepository.getWallets()` |
+| `totalBalanceProvider` | `FutureProvider<int>` | `activeCashbookProvider`; delegates to `CashbookRepository.getTotalBalance()` |
 
 ### Tier 6 — Transaction Data (FutureProvider + StateProvider)
 
@@ -56,10 +57,11 @@ These are synchronous; they just wire up dependencies.
 | `transactionFilterProvider` | `StateProvider` | Holds `{type, month}` filter state |
 | `selectedMonthProvider` | `StateProvider<DateTime>` | Selected month in transaction list |
 | `transactionsProvider` | `FutureProvider<List<TransactionEntity>>` | Reads both filter providers |
+| `transactionListItemsProvider` | `FutureProvider<List<TransactionListItem>>` | Precomputes grouped rows for transaction list UI; keeps grouping work out of `TransactionListScreen.build()` |
 | `transactionDetailProvider` | `FutureProvider.family<TransactionEntity, String>` | Fetches fresh transaction detail by `transactionId` (with wallet/category joins) |
-| `monthlySummaryProvider` | `FutureProvider<Map>` | Income/expense totals for selected month |
+| `monthlySummaryProvider` | `FutureProvider<Map>` | Income/expense totals for selected month; delegates to `TransactionRepository.getMonthlySummaryForReport()` |
 | `categoriesProvider` | `FutureProvider.family` | Keyed by `cashbookId` |
-| `transfersProvider` | `FutureProvider<List<TransferEntity>>` | Transfer history |
+| `transfersProvider` | `FutureProvider<List<TransferEntity>>` | Transfer history; delegates to `TransactionRepository.getTransfersByCashbook()` |
 
 ---
 
@@ -129,14 +131,23 @@ All write operations follow this pattern:
 ### defaultCashbookProvider Side Effect
 This provider does double duty: it fetches the default cashbook AND writes it into `activeCashbookProvider`. All downstream data providers depend on `activeCashbookProvider`, so `DashboardScreen` must watch `defaultCashbookProvider` in its build method to trigger the chain.
 
+### Repository-Backed Providers
+Some providers no longer talk to Supabase directly. `cashbooksProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`, and `transfersProvider` now delegate to repository methods so the provider layer stays focused on orchestration, state derivation, and invalidation.
+
+### Loading Pipeline Split
+`LoadingScreen` resolves `defaultCashbookProvider`, `cashbooksProvider`, and `walletsProvider` before entering the dashboard. The readiness check now lives outside `build()` so the pre-warm flow stays stable across rebuilds.
+
 ### setupInProgressProvider
 Set to `true` before launching the first-time setup wizard in `RegisterScreen`. Prevents the router's `redirect` function from navigating away mid-wizard. Must be set back to `false` when wizard completes (even on error).
 
 ### appThemeModeProvider
-Used by `MoneyTrackerApp` in `main.dart` as `themeMode` source. `SettingsScreen` updates this provider directly for Sistem/Terang/Gelap switching.
+Used by `MoneyTrackerApp` in `main.dart` as `themeMode` source. `SettingsScreen` updates this provider directly for Sistem/Terang/Gelap switching. `ThemeModeNotifier` reads `sharedPreferencesProvider` and persists the selected mode.
 
 ### categoriesProvider.family
 Uses `.family` modifier keyed by `cashbookId`. Categories are per cashbook (user-defined) plus system-wide ones (null cashbook_id). Pass the active cashbook ID when watching: `ref.watch(categoriesProvider(cashbookId))`.
+
+### transactionListItemsProvider
+This provider derives from `transactionsProvider` and precomputes the header/item rows once per data refresh. `TransactionListScreen` consumes these rows directly so grouping work does not happen inside the widget build.
 
 ---
 

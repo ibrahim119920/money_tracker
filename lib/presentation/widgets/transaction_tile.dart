@@ -95,6 +95,7 @@ class TransactionTile extends StatelessWidget {
     final isIncome = transaction.type == TransactionType.income;
     final typeColor = _getTypeColor();
     final title = transaction.name ?? transaction.categoryName ?? 'Transaksi';
+    final colorScheme = Theme.of(context).colorScheme;
 
     // Build subtitle: date [· wallet name]
     final subtitleParts = [
@@ -108,8 +109,8 @@ class TransactionTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.outlineVariant),
-        color: Colors.white,
+        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.surface,
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -135,6 +136,9 @@ class TransactionTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: typeColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: typeColor.withValues(alpha: 0.18),
+                          ),
                         ),
                         child: Icon(_getIcon(), color: typeColor, size: 22),
                       ),
@@ -159,7 +163,7 @@ class TransactionTile extends StatelessWidget {
                               subtitle,
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
-                                    color: AppColors.textSecondary,
+                                    color: colorScheme.onSurfaceVariant,
                                     fontSize: 12,
                                   ),
                               maxLines: 1,
@@ -192,7 +196,7 @@ class TransactionTile extends StatelessWidget {
                               transaction.categoryName!,
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
-                                    color: AppColors.textSecondary,
+                                    color: colorScheme.onSurfaceVariant,
                                     fontSize: 11,
                                   ),
                               maxLines: 1,

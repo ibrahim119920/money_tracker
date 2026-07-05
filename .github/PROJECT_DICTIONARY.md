@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: May 8, 2026 (Sprint 4.6 - Fix Wallet Balance on Delete)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: July 5, 2026 (Sprint 4.13 - Dual Palette Refresh)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -11,8 +11,8 @@
 |---|---|
 | `lib/main.dart` | `MoneyTrackerApp`, `_AppInitErrorWidget`, init: `await initializeDateFormatting('id_ID', null)` ⚠️ diperlukan sebelum `runApp()` |
 | `lib/app/router.dart` | `AppRoutes` (konstanta path), `goRouterProvider`, `_RouterNotifier`, `_SplashScreen` |
-| `lib/app/theme.dart` | `AppTheme.getLightTheme()`, `AppTheme.getDarkTheme()` |
-| `lib/core/constants/app_colors.dart` | `AppColors` (primary, income, expense, transfer, success, error, background, surface, categoryColors) |
+| `lib/app/theme.dart` | `AppTheme.getLightTheme()`, `AppTheme.getDarkTheme()` (Material 3 `ColorScheme` di-map ke palette light/dark baru) |
+| `lib/core/constants/app_colors.dart` | `AppColors` (dual-mode palette: light dark teal/lavender/lime + dark deep teal/lavender/lime, mint/peach neutrals, income, expense, transfer, success, error, background, surface, categoryColors) |
 | `lib/core/constants/app_strings.dart` | `AppStrings` — semua string UI Bahasa Indonesia |
 | `lib/core/constants/supabase_keys.dart` | `SupabaseKeys.supabaseUrl`, `SupabaseKeys.supabaseAnonKey` |
 | `lib/core/utils/currency_formatter.dart` | `CurrencyFormatter.format()`, `.parse()`, `.formatCompact()` |
@@ -48,23 +48,25 @@
 | File | Provider | Type | Catatan |
 |---|---|---|---|
 | `lib/presentation/providers/providers.dart` | `supabaseClientProvider` | `Provider` | DI untuk Supabase client |
+| `lib/presentation/providers/providers.dart` | `sharedPreferencesProvider` | `Provider<Future<SharedPreferences>>` | Future instance SharedPreferences untuk persist `appThemeModeProvider` |
 | `lib/presentation/providers/providers.dart` | `cashbookRepositoryProvider`, `walletRepositoryProvider`, `transactionRepositoryProvider`, `settingsRepositoryProvider` | `Provider` | DI untuk semua repository |
 | `lib/presentation/providers/providers.dart` | `authStateProvider` | `StreamProvider` | Listen auth state changes |
 | `lib/presentation/providers/providers.dart` | `currentUserProvider` | `FutureProvider` | Current logged-in user |
 | `lib/presentation/providers/providers.dart` | `setupInProgressProvider` | `StateProvider<bool>` | ⚡ Flag untuk suppress router redirect saat onboarding |
 | `lib/presentation/providers/providers.dart` | `activeCashbookProvider` | `StateProvider` | Cashbook yg sdg dipilih (set otomatis oleh defaultCashbookProvider) |
-| `lib/presentation/providers/providers.dart` | `appThemeModeProvider` | `StateProvider<ThemeMode>` | Theme mode runtime: sistem/terang/gelap |
-| `lib/presentation/providers/providers.dart` | `cashbooksProvider` | `FutureProvider` | Daftar semua cashbook user |
+| `lib/presentation/providers/providers.dart` | `appThemeModeProvider` | `StateNotifierProvider<ThemeModeNotifier, ThemeMode>` | Theme mode runtime: sistem/terang/gelap + persist ke SharedPreferences |
+| `lib/presentation/providers/providers.dart` | `cashbooksProvider` | `FutureProvider` | Daftar semua cashbook user; delegate ke `CashbookRepository.getUserCashbooks()` |
 | `lib/presentation/providers/providers.dart` | `defaultCashbookProvider` | `FutureProvider` | ⚡ Auto-load default cashbook & set ke active |
-| `lib/presentation/providers/providers.dart` | `walletsProvider` | `FutureProvider` | Dompet di active cashbook |
-| `lib/presentation/providers/providers.dart` | `totalBalanceProvider` | `FutureProvider` | Total saldo semua dompet |
+| `lib/presentation/providers/providers.dart` | `walletsProvider` | `FutureProvider` | Dompet di active cashbook; delegate ke `WalletRepository.getWallets()` |
+| `lib/presentation/providers/providers.dart` | `totalBalanceProvider` | `FutureProvider` | Total saldo semua dompet; delegate ke `CashbookRepository.getTotalBalance()` |
 | `lib/presentation/providers/providers.dart` | `categoriesProvider` | `FutureProvider.family` | By cashbookId |
 | `lib/presentation/providers/providers.dart` | `transactionFilterProvider` | `StateProvider` | Filter (tipe, bulan) |
 | `lib/presentation/providers/providers.dart` | `transactionsProvider` | `FutureProvider` | Transaksi dengan filter |
+| `lib/presentation/providers/providers.dart` | `transactionListItemsProvider` | `FutureProvider` | Daftar transaksi yang sudah dikelompokkan per tanggal untuk UI; grouping tidak dilakukan di build widget |
 | `lib/presentation/providers/providers.dart` | `transactionDetailProvider` | `FutureProvider.family<TransactionEntity, String>` | Detail transaksi by `transactionId` + join wallet/category |
 | `lib/presentation/providers/providers.dart` | `selectedMonthProvider` | `StateProvider<DateTime>` | Bulan yg dipilih di transaction list |
-| `lib/presentation/providers/providers.dart` | `monthlySummaryProvider` | `FutureProvider` | Summary income/expense setiap bulan |
-| `lib/presentation/providers/providers.dart` | `transfersProvider` | `FutureProvider` | Transfer history |
+| `lib/presentation/providers/providers.dart` | `monthlySummaryProvider` | `FutureProvider` | Summary income/expense setiap bulan; delegate ke `TransactionRepository.getMonthlySummaryForReport()` |
+| `lib/presentation/providers/providers.dart` | `transfersProvider` | `FutureProvider` | Transfer history; delegate ke `TransactionRepository.getTransfersByCashbook()` |
 | `lib/presentation/providers/providers.dart` | `reportMonthProvider` | `StateProvider<DateTime>` | Bulan dipilih di halaman laporan |
 | `lib/presentation/providers/providers.dart` | `reportMonthlySummaryProvider` | `FutureProvider.family<Map<String,int>, DateTime>` | Summary income/expense untuk bulan tertentu (laporan) |
 | `lib/presentation/providers/providers.dart` | `reportCategoryBreakdownProvider` | `FutureProvider.family` | Pie chart data: breakdown per kategori. Param: `({cashbookId, month, transactionType})` |
@@ -78,16 +80,16 @@
 | `lib/presentation/screens/auth/register_screen.dart` | `RegisterScreen`, `_FieldLabel`, `_StepIndicator`, `_StepItem` | ✅ Lengkap — 4 fields, step indicator, terms checkbox, **auto-create cashbook default saat register** |
 | `lib/presentation/screens/cashbook/cashbook_list_screen.dart` | `CashbookListScreen`, `CashbookListItem` | ✅ |
 | `lib/presentation/screens/cashbook/cashbook_form_screen.dart` | `CashbookFormScreen` | ✅ |
-| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ |
-| `lib/presentation/screens/splash/loading_screen.dart` | `LoadingScreen` — pre-warm providers sebelum masuk Dashboard | ✅ |
+| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — section loading now uses lighter transitions |
+| `lib/presentation/screens/splash/loading_screen.dart` | `LoadingScreen` — pre-warm providers sebelum masuk Dashboard | ✅ — readiness check moved out of build |
 | `lib/presentation/screens/wallet/wallet_list_screen.dart` | `WalletListScreen`, `WalletListItem` | ✅ |
 | `lib/presentation/screens/wallet/wallet_form_screen.dart` | `WalletFormScreen` | ✅ |
-| `lib/presentation/screens/wallet/wallet_detail_screen.dart` | `WalletDetailScreen`, `_walletMonthlySummaryProvider`, `_walletTransactionsProvider` | ✅ |
-| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeChip`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ |
+| `lib/presentation/screens/wallet/wallet_detail_screen.dart` | `WalletDetailScreen`, `_walletMonthlySummaryProvider`, `_walletTransactionsProvider` | ✅ — loading summary/transactions use lightweight placeholders |
+| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeChip`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — grouped rows derived by provider; loading uses placeholders |
 | `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField`, `_CategoryPickerSheet` | ✅ |
 | `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ |
 | `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen`, `_WalletDropdownItem`, `_ThousandSeparatorFormatter` | ✅ |
-| `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_SummaryCard`, `_NetCard`, `_PieChartSection`, `_TypeToggle`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ |
+| `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_SummaryCard`, `_NetCard`, `_PieChartSection`, `_TypeToggle`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ — loading sections use AnimatedSwitcher + placeholders |
 | `lib/presentation/screens/settings/settings_screen.dart` | `SettingsScreen` | ✅ P0 — profile, password, theme mode, default cashbook, about, logout |
 
 ### Widgets
@@ -372,6 +374,47 @@ Future<void> _createTransaction() async {
 
 ## SPRINT LOG & CHECKLIST
 
+### ✅ **Sprint 4.8 — Comfort Pipeline Improvements DONE (June 30, 2026)**
+**Items:**
+- [x] Pindahkan readiness check loading pipeline ke `initState` di `lib/presentation/screens/splash/loading_screen.dart` agar tidak dijadwalkan ulang dari `build()`.
+- [x] Kurangi kerja ulang di transaction list dengan menghapus sort redundant pada data yang sudah diurutkan oleh repository di `lib/presentation/screens/transaction/transaction_list_screen.dart`.
+- [x] Tambah `transactionListItemsProvider` untuk precompute grouping transaksi per tanggal sebelum masuk ke build UI.
+- [x] Pecah [dashboard_screen.dart](lib/presentation/screens/dashboard/dashboard_screen.dart) menjadi bootstrap, scaffold, body, dan consumer widgets kecil agar rebuild lebih terlokalisasi.
+- [x] Pecah [monthly_report_screen.dart](lib/presentation/screens/report/monthly_report_screen.dart) menjadi body consumer terpisah dan ganti loading spinner dengan placeholder visual yang lebih halus.
+- [x] Pertahankan behavior existing sambil menurunkan rebuild overhead dan memperbaiki perceived responsiveness.
+
+### ✅ **Sprint 4.9 — Documentation Sync & UX Polish DONE (June 30, 2026)**
+**Items:**
+- [x] Sinkronkan [docs/state-management.md](docs/state-management.md) untuk `transactionListItemsProvider` dan split loading pipeline.
+- [x] Sinkronkan [docs/feature-modules.md](docs/feature-modules.md) untuk loading placeholder dashboard, wallet detail, transaction list, dan reports.
+- [x] Sinkronkan [docs/project-map.md](docs/project-map.md) untuk `LoadingScreen` dan derived transaction list grouping.
+- [x] Update ringkasan file/class di `.github/PROJECT_DICTIONARY.md` agar cocok dengan state codebase terbaru.
+
+### ✅ **Sprint 4.10 — Palette Refresh DONE (June 30, 2026)**
+**Items:**
+- [x] Ganti palette global di [lib/core/constants/app_colors.dart](lib/core/constants/app_colors.dart) ke dark teal, lavender, lime, mint, peach, dan neutrals baru.
+- [x] Sesuaikan [lib/app/theme.dart](lib/app/theme.dart) agar `ColorScheme` Material 3 memakai seed baru dan aksen yang lebih selaras.
+- [x] Terapkan aksen palette baru di [lib/presentation/screens/splash/loading_screen.dart](lib/presentation/screens/splash/loading_screen.dart) dan [lib/presentation/screens/auth/landing_screen.dart](lib/presentation/screens/auth/landing_screen.dart).
+- [x] Sinkronkan dokumentasi palette di [docs/project-map.md](docs/project-map.md) dan file dictionary ini.
+
+### ✅ **Sprint 4.11 — Provider Type Cleanup DONE (July 5, 2026)**
+**Items:**
+- [x] Ubah `sharedPreferencesProvider` menjadi `Provider<Future<SharedPreferences>>` dan sesuaikan `ThemeModeNotifier` agar menerima future langsung di [lib/presentation/providers/providers.dart](lib/presentation/providers/providers.dart).
+- [x] Sinkronkan dokumentasi state-management di [docs/state-management.md](docs/state-management.md) agar tipe `appThemeModeProvider` dan provider prefs sesuai kode.
+- [x] Update file map provider di `.github/PROJECT_DICTIONARY.md` supaya mencerminkan persistensi theme mode lewat `SharedPreferences`.
+
+### ✅ **Sprint 4.12 — Dark Palette Propagation DONE (July 5, 2026)**
+**Items:**
+- [x] Propagasi palette dark ke layar inti yang sebelumnya masih menahan warna light: [loading_screen.dart](lib/presentation/screens/splash/loading_screen.dart), [dashboard_screen.dart](lib/presentation/screens/dashboard/dashboard_screen.dart), [transaction_list_screen.dart](lib/presentation/screens/transaction/transaction_list_screen.dart), [monthly_report_screen.dart](lib/presentation/screens/report/monthly_report_screen.dart).
+- [x] Update widget reusable [transaction_tile.dart](lib/presentation/widgets/transaction_tile.dart) agar kartu transaksi mengikuti `ColorScheme` tema aktif.
+- [x] Update layar detail [transaction_detail_screen.dart](lib/presentation/screens/transaction/transaction_detail_screen.dart) dan [wallet_detail_screen.dart](lib/presentation/screens/wallet/wallet_detail_screen.dart) supaya header, card, dan loading state memakai palette gelap.
+
+### ✅ **Sprint 4.13 — Dual Palette Refresh DONE (July 5, 2026)**
+**Items:**
+- [x] Perbarui [lib/core/constants/app_colors.dart](lib/core/constants/app_colors.dart) agar nilai light/dark mengikuti palette baru yang diminta.
+- [x] Perbarui [lib/app/theme.dart](lib/app/theme.dart) supaya `ColorScheme` dark memakai container/error baru dari palette dan tetap menjaga light mode.
+- [x] Jadikan [lib/presentation/screens/splash/loading_screen.dart](lib/presentation/screens/splash/loading_screen.dart) adaptif terhadap mode terang dan gelap agar splash tidak menahan warna dark di light mode.
+
 ### ✅ **Sprint 4.5 — Transaction Detail Hydration Fix DONE (April 8, 2026)**
 **Items:**
 - [x] Perbaiki parser `TransactionModel.fromJson()` agar membaca hasil join nested Supabase (`wallets`, `categories`) di `lib/data/models/models.dart`
@@ -514,6 +557,12 @@ Future<void> _createTransaction() async {
 - [ ] Settings page
 - [ ] Recurring transactions
 - [ ] Update PROJECT_DICTIONARY after completion
+
+### ✅ **Sprint 4.7 — Provider Orchestration Cleanup DONE (June 30, 2026)**
+**Items:**
+- [x] Pindahkan fetch cashbooks, wallets, total balance, monthly summary, dan transfer history dari `lib/presentation/providers/providers.dart` ke repository layer.
+- [x] Pertahankan `providers.dart` sebagai orchestration layer untuk state, invalidation, dan dependency wiring.
+- [x] Tambahkan helper internal untuk normalisasi tanggal dan agregasi integer di `lib/data/repositories/cashbook_wallet_repository.dart`.
 
 ### ⏳ Sprint 4 — Polish & Advanced
 - [x] Transfer between wallets

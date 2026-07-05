@@ -3,6 +3,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/models.dart';
 import '../../domain/entities/entities.dart';
 
+DateTime _monthStart(DateTime month) => DateTime(month.year, month.month, 1);
+
+DateTime _monthEnd(DateTime month) => DateTime(month.year, month.month + 1, 0);
+
+String _dateOnly(DateTime dateTime) => dateTime.toIso8601String().split('T')[0];
+
+int _sumIntField(List<dynamic> rows, String fieldName) {
+  var total = 0;
+
+  for (final row in rows) {
+    final value = row[fieldName];
+    total += (value as int?) ?? 0;
+  }
+
+  return total;
+}
+
 /// CashbookRepository - untuk manajemen buku kas
 class CashbookRepository {
   final SupabaseClient _client;
@@ -96,11 +113,7 @@ class CashbookRepository {
           .eq('cashbook_id', cashbookId)
           .eq('is_active', true);
 
-      int total = 0;
-      for (final wallet in wallets as List) {
-        total += (wallet['current_balance'] as int?) ?? 0;
-      }
-      return total;
+      return _sumIntField(wallets as List<dynamic>, 'current_balance');
     } catch (e) {
       return 0;
     }
@@ -263,8 +276,10 @@ class WalletRepository {
     required DateTime month,
   }) async {
     try {
-      final monthStart = DateTime(month.year, month.month, 1);
-      final monthEnd = DateTime(month.year, month.month + 1, 0);
+      final monthStart = _monthStart(month);
+      final monthEnd = _monthEnd(month);
+      final startDate = _dateOnly(monthStart);
+      final endDate = _dateOnly(monthEnd);
 
       // Income
       final incomeData = await _client
@@ -273,13 +288,8 @@ class WalletRepository {
           .eq('wallet_id', walletId)
           .eq('type', 'income')
           .eq('is_deleted', false)
-          .gte('transaction_date', monthStart.toIso8601String().split('T')[0])
-          .lte('transaction_date', monthEnd.toIso8601String().split('T')[0]);
-
-      int income = 0;
-      for (final tx in incomeData as List) {
-        income += (tx['amount'] as int?) ?? 0;
-      }
+          .gte('transaction_date', startDate)
+          .lte('transaction_date', endDate);
 
       // Expense
       final expenseData = await _client
@@ -288,15 +298,13 @@ class WalletRepository {
           .eq('wallet_id', walletId)
           .eq('type', 'expense')
           .eq('is_deleted', false)
-          .gte('transaction_date', monthStart.toIso8601String().split('T')[0])
-          .lte('transaction_date', monthEnd.toIso8601String().split('T')[0]);
+          .gte('transaction_date', startDate)
+          .lte('transaction_date', endDate);
 
-      int expense = 0;
-      for (final tx in expenseData as List) {
-        expense += (tx['amount'] as int?) ?? 0;
-      }
-
-      return {'income': income, 'expense': expense};
+      return {
+        'income': _sumIntField(incomeData as List<dynamic>, 'amount'),
+        'expense': _sumIntField(expenseData as List<dynamic>, 'amount'),
+      };
     } catch (e) {
       return {'income': 0, 'expense': 0};
     }
@@ -307,7 +315,62 @@ class WalletRepository {
 class TransactionRepository {
   final SupabaseClient _client;
 
+  // Cache in-memory untuk menyimpan transaksi berdasarkan kombinasi filter
+  final Map<String, List<TransactionEntity>> _transactionCache = {};
+
   TransactionRepository(this._client);
+
+  /// Get daftar transaksi dengan pendekatan Cache-First (Stale-While-Revalidate)
+  Stream<List<TransactionEntity>> getTransactionsStream({
+    required String cashbookId,
+    String? type,
+    String? walletId,
+    String? categoryId,
+    String? startDate,
+    String? endDate,
+  }) async* {
+    // 1. Buat identifier unik untuk cache berdasarkan filter yang sedang aktif
+    final cacheKey =
+        '${cashbookId}_${type}_${walletId}_${categoryId}_${startDate}_${endDate}';
+
+    // 2. Lempar data cache duluan jika ada (UI langsung tampil tanpa loading)
+    if (_transactionCache.containsKey(cacheKey)) {
+      yield _transactionCache[cacheKey]!;
+    }
+
+    // 3. Fetch data terbaru dari Supabase secara diam-diam
+    try {
+      var query = _client
+          .from('transactions')
+          .select(
+            '*, wallets(wallet_name), categories(category_name, icon, color)',
+          )
+          .eq('cashbook_id', cashbookId)
+          .eq('is_deleted', false);
+
+      if (type != null) query = query.eq('type', type);
+      if (walletId != null) query = query.eq('wallet_id', walletId);
+      if (categoryId != null) query = query.eq('category_id', categoryId);
+      if (startDate != null) query = query.gte('transaction_date', startDate);
+      if (endDate != null) query = query.lte('transaction_date', endDate);
+
+      final response = await query.order('transaction_date', ascending: false);
+
+      final transactions = (response as List).map((e) {
+        return TransactionModel.fromJson(e).toEntity();
+      }).toList();
+
+      // 4. Perbarui cache dan lempar data terbaru ke UI
+      _transactionCache[cacheKey] = transactions;
+      yield transactions;
+    } catch (e) {
+      // Jika error (misal offline) tapi kita punya cache, biarkan user melihat cache.
+      // Jika tidak punya cache, baru lempar error.
+      if (!_transactionCache.containsKey(cacheKey)) {
+        throw Exception('Gagal mengambil transaksi: $e');
+      }
+    }
+  }
 
   /// Buat transaksi baru
   Future<TransactionEntity> createTransaction({
@@ -331,7 +394,7 @@ class TransactionRepository {
             'amount': amount,
             'name': name,
             'notes': notes,
-            'transaction_date': transactionDate.toIso8601String().split('T')[0],
+            'transaction_date': _dateOnly(transactionDate),
             'is_deleted': false,
           })
           .select()
@@ -362,7 +425,7 @@ class TransactionRepository {
             'amount': amount,
             'name': name,
             'notes': notes,
-            'transaction_date': transactionDate.toIso8601String().split('T')[0],
+            'transaction_date': _dateOnly(transactionDate),
           })
           .eq('transaction_id', transactionId)
           .select()
@@ -456,7 +519,7 @@ class TransactionRepository {
             'to_wallet_id': toWalletId,
             'amount': amount,
             'notes': notes,
-            'transfer_date': transferDate.toIso8601String().split('T')[0],
+            'transfer_date': _dateOnly(transferDate),
           })
           .select(
             '*, from_wallet:from_wallet_id(wallet_name), to_wallet:to_wallet_id(wallet_name)',
@@ -507,16 +570,18 @@ class TransactionRepository {
     required DateTime month,
   }) async {
     try {
-      final monthStart = DateTime(month.year, month.month, 1);
-      final monthEnd = DateTime(month.year, month.month + 1, 0);
+      final monthStart = _monthStart(month);
+      final monthEnd = _monthEnd(month);
+      final startDate = _dateOnly(monthStart);
+      final endDate = _dateOnly(monthEnd);
 
       final response = await _client
           .from('transactions')
           .select('type, amount')
           .eq('cashbook_id', cashbookId)
           .eq('is_deleted', false)
-          .gte('transaction_date', monthStart.toIso8601String().split('T')[0])
-          .lte('transaction_date', monthEnd.toIso8601String().split('T')[0]);
+          .gte('transaction_date', startDate)
+          .lte('transaction_date', endDate);
 
       int income = 0;
       int expense = 0;
@@ -542,8 +607,10 @@ class TransactionRepository {
     required TransactionType transactionType,
   }) async {
     try {
-      final monthStart = DateTime(month.year, month.month, 1);
-      final monthEnd = DateTime(month.year, month.month + 1, 0);
+      final monthStart = _monthStart(month);
+      final monthEnd = _monthEnd(month);
+      final startDate = _dateOnly(monthStart);
+      final endDate = _dateOnly(monthEnd);
 
       final response = await _client
           .from('transactions')
@@ -551,8 +618,8 @@ class TransactionRepository {
           .eq('cashbook_id', cashbookId)
           .eq('type', transactionType.value)
           .eq('is_deleted', false)
-          .gte('transaction_date', monthStart.toIso8601String().split('T')[0])
-          .lte('transaction_date', monthEnd.toIso8601String().split('T')[0]);
+          .gte('transaction_date', startDate)
+          .lte('transaction_date', endDate);
 
       // Aggregate by category
       final Map<String, Map<String, dynamic>> aggregated = {};

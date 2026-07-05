@@ -14,6 +14,7 @@ class TransactionDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final transactionAsync = ref.watch(
       transactionDetailProvider(transaction.transactionId),
     );
@@ -25,13 +26,13 @@ class TransactionDetailScreen extends ConsumerWidget {
         detailTransaction.notes != description;
 
     final isIncome = detailTransaction.type == TransactionType.income;
-    final appBarColor = isIncome ? AppColors.income : AppColors.expense;
+    final appBarColor = isIncome ? colorScheme.primary : colorScheme.error;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
-        backgroundColor: appBarColor,
-        foregroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0,
         title: const Text('Detail Transaksi'),
         actions: [
@@ -58,7 +59,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [appBarColor, appBarColor.withValues(alpha: 0.8)],
+                  colors: [appBarColor, appBarColor.withValues(alpha: 0.75)],
                 ),
               ),
               padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
@@ -70,8 +71,8 @@ class TransactionDetailScreen extends ConsumerWidget {
                   Text(
                     CurrencyFormatter.format(detailTransaction.amount),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: colorScheme.onPrimary,
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
                     ),
@@ -79,21 +80,21 @@ class TransactionDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text(
                     isIncome ? 'Pemasukan' : 'Pengeluaran',
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: colorScheme.onPrimary.withValues(alpha: 0.9),
                       fontSize: 14,
                       fontWeight: FontWeight.normal,
-                    ).copyWith(color: Colors.white.withValues(alpha: 0.8)),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     DateFormatter.formatFullDate(
                       detailTransaction.transactionDate,
                     ),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: colorScheme.onPrimary.withValues(alpha: 0.9),
                       fontSize: 12,
-                    ).copyWith(color: Colors.white.withValues(alpha: 0.8)),
+                    ),
                   ),
                 ],
               ),
@@ -106,7 +107,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: AppColors.outlineVariant),
+                    side: BorderSide(color: colorScheme.outlineVariant),
                 ),
                 child: Column(
                   children: [
@@ -156,8 +157,8 @@ class TransactionDetailScreen extends ConsumerWidget {
                 label: const Text('Hapus Transaksi'),
                 onPressed: () => _confirmDelete(context, ref),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.expense,
-                  side: BorderSide(color: AppColors.expense),
+                  foregroundColor: colorScheme.error,
+                  side: BorderSide(color: colorScheme.error),
                   minimumSize: const Size(double.infinity, 48),
                 ),
               ),
@@ -171,6 +172,7 @@ class TransactionDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -185,7 +187,7 @@ class TransactionDetailScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.expense),
+            style: TextButton.styleFrom(foregroundColor: colorScheme.error),
             child: const Text('Hapus'),
           ),
         ],

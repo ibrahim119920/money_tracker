@@ -78,7 +78,7 @@ class _LandingScreenState extends State<LandingScreen>
                         width: 180,
                         height: 180,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.06),
+                          color: AppColors.lavender.withOpacity(0.18),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -92,8 +92,8 @@ class _LandingScreenState extends State<LandingScreen>
                         width: 120,
                         height: 120,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
-                          shape: BoxShape.circle,
+                          color: AppColors.lime.withOpacity(0.16),
+                          borderRadius: BorderRadius.circular(48),
                         ),
                       ),
                     ),
@@ -106,7 +106,7 @@ class _LandingScreenState extends State<LandingScreen>
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: AppColors.mint.withOpacity(0.20),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -147,6 +147,15 @@ class _LandingScreenState extends State<LandingScreen>
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.white.withOpacity(0.85),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Container(
+                            width: 136,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AppColors.lime,
+                              borderRadius: BorderRadius.circular(999),
                             ),
                           ),
                         ],

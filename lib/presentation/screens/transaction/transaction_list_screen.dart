@@ -67,6 +67,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
 
   Future<void> _onRefresh() async {
     ref.invalidate(transactionsProvider);
+    ref.invalidate(transactionListItemsProvider);
     ref.invalidate(monthlySummaryProvider);
     // Wait for the providers to reload
     await Future.wait([
@@ -79,34 +80,10 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
     ]);
   }
 
-  /// Group transactions by date, sorted DESC
-  List<_ListItem> _buildListItems(List<TransactionEntity> transactions) {
-    final sorted = List<TransactionEntity>.from(transactions)
-      ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
-
-    final items = <_ListItem>[];
-    DateTime? currentDate;
-
-    for (final tx in sorted) {
-      final txDate = DateTime(
-        tx.transactionDate.year,
-        tx.transactionDate.month,
-        tx.transactionDate.day,
-      );
-      if (currentDate == null ||
-          !DateFormatter.isSameDay(txDate, currentDate)) {
-        currentDate = txDate;
-        items.add(_ListItem.header(txDate));
-      }
-      items.add(_ListItem.transaction(tx));
-    }
-    return items;
-  }
-
   @override
   Widget build(BuildContext context) {
     final selectedMonth = ref.watch(selectedMonthProvider);
-    final transactionsAsync = ref.watch(transactionsProvider);
+    final transactionsAsync = ref.watch(transactionListItemsProvider);
     final summaryAsync = ref.watch(monthlySummaryProvider);
 
     return Scaffold(
@@ -122,22 +99,30 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
           ),
 
           // ── Summary bar ─────────────────────────────────────────────────
-          summaryAsync.when(
-            loading: () =>
-                const SizedBox(height: 4, child: LinearProgressIndicator()),
-            error: (_, __) => const SizedBox.shrink(),
-            data: (summary) {
-              final income = summary['income'] ?? 0;
-              final expense = summary['expense'] ?? 0;
-              final net = income - expense;
-              return _SummaryBar(income: income, expense: expense, net: net);
-            },
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: summaryAsync.when(
+              loading: () =>
+                  const _SummaryBarPlaceholder(key: ValueKey('loading')),
+              error: (_, __) => const SizedBox.shrink(key: ValueKey('error')),
+              data: (summary) {
+                final income = summary['income'] ?? 0;
+                final expense = summary['expense'] ?? 0;
+                final net = income - expense;
+                return _SummaryBar(
+                  key: ValueKey('$income:$expense:$net'),
+                  income: income,
+                  expense: expense,
+                  net: net,
+                );
+              },
+            ),
           ),
 
           // ── Transaction list ─────────────────────────────────────────────
           Expanded(
             child: transactionsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const _TransactionListLoading(),
               error: (e, _) => Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -161,7 +146,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                 if (transactions.isEmpty) {
                   return _EmptyState();
                 }
-                final items = _buildListItems(transactions);
                 return RefreshIndicator(
                   onRefresh: _onRefresh,
                   child: ListView.builder(
@@ -169,9 +153,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    itemCount: items.length,
+                    itemCount: transactions.length,
                     itemBuilder: (context, index) {
-                      final item = items[index];
+                      final item = transactions[index];
                       if (item.isHeader) {
                         return _DateHeader(date: item.date!);
                       }
@@ -195,23 +179,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// List item union type
-// ---------------------------------------------------------------------------
-class _ListItem {
-  final bool isHeader;
-  final DateTime? date;
-  final TransactionEntity? transaction;
-
-  const _ListItem._({required this.isHeader, this.date, this.transaction});
-
-  factory _ListItem.header(DateTime date) =>
-      _ListItem._(isHeader: true, date: date);
-
-  factory _ListItem.transaction(TransactionEntity tx) =>
-      _ListItem._(isHeader: false, transaction: tx);
-}
-
-// ---------------------------------------------------------------------------
 // Filter bar
 // ---------------------------------------------------------------------------
 class _FilterBar extends StatelessWidget {
@@ -229,8 +196,9 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
@@ -268,7 +236,7 @@ class _FilterBar extends StatelessWidget {
             onPressed: onMonthTap,
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              side: const BorderSide(color: AppColors.outline),
+              side: BorderSide(color: colorScheme.outline),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -280,9 +248,9 @@ class _FilterBar extends StatelessWidget {
             ),
             label: Text(
               DateFormatter.formatMonthYear(selectedMonth),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -307,15 +275,18 @@ class _TypeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? selectedColor.withOpacity(0.12) : Colors.white,
+          color: isSelected
+              ? selectedColor.withOpacity(0.12)
+              : colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? selectedColor : AppColors.outline,
+            color: isSelected ? selectedColor : colorScheme.outline,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -324,7 +295,7 @@ class _TypeChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected ? selectedColor : AppColors.textSecondary,
+            color: isSelected ? selectedColor : colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -341,6 +312,7 @@ class _SummaryBar extends StatelessWidget {
   final int net;
 
   const _SummaryBar({
+    super.key,
     required this.income,
     required this.expense,
     required this.net,
@@ -348,9 +320,10 @@ class _SummaryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final netColor = net >= 0 ? AppColors.primary : AppColors.expense;
     return Container(
-      color: Colors.white,
+      color: colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
@@ -380,6 +353,44 @@ class _SummaryBar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SummaryBarPlaceholder extends StatelessWidget {
+  const _SummaryBarPlaceholder({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      color: colorScheme.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: const [
+          Expanded(child: _SummaryStatPlaceholder()),
+          SizedBox(width: 12),
+          Expanded(child: _SummaryStatPlaceholder()),
+          SizedBox(width: 12),
+          Expanded(child: _SummaryStatPlaceholder()),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryStatPlaceholder extends StatelessWidget {
+  const _SummaryStatPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Container(width: 48, height: 10, color: colorScheme.outlineVariant),
+        const SizedBox(height: 6),
+        Container(width: 72, height: 14, color: colorScheme.outlineVariant),
+      ],
     );
   }
 }
@@ -430,16 +441,17 @@ class _DateHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 6, top: 12),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         DateFormatter.formatFullDate(date),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
           color: AppColors.textSecondary,
@@ -455,6 +467,7 @@ class _DateHeader extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -462,23 +475,89 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.receipt_long_outlined,
             size: 64,
-            color: AppColors.textTertiary,
+            color: colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Belum ada transaksi',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'di bulan ini',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TransactionListLoading extends StatelessWidget {
+  const _TransactionListLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: 5,
+      itemBuilder: (_, index) => Padding(
+        padding: EdgeInsets.only(bottom: index == 4 ? 0 : 8),
+        child: Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: colorScheme.outlineVariant),
+          ),
+          child: const ListTile(
+            leading: _TransactionLoadingLeading(),
+            title: _TransactionLoadingLine(width: 132),
+            subtitle: _TransactionLoadingLine(width: 172, height: 10),
+            trailing: _TransactionLoadingLine(width: 72, height: 14),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TransactionLoadingLeading extends StatelessWidget {
+  const _TransactionLoadingLeading();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.outlineVariant.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+}
+
+class _TransactionLoadingLine extends StatelessWidget {
+  final double width;
+  final double height;
+
+  const _TransactionLoadingLine({required this.width, this.height = 12});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.outlineVariant.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(999),
       ),
     );
   }
