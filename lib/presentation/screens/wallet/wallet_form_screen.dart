@@ -11,7 +11,7 @@ import '../../providers/providers.dart';
 class WalletFormScreen extends ConsumerStatefulWidget {
   final WalletEntity? wallet;
 
-  const WalletFormScreen({Key? key, this.wallet}) : super(key: key);
+  const WalletFormScreen({super.key, this.wallet});
 
   @override
   ConsumerState<WalletFormScreen> createState() => _WalletFormScreenState();
@@ -163,12 +163,14 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
   Widget build(BuildContext context) {
     final isEditMode = widget.wallet != null;
     final title = isEditMode ? 'Edit Dompet' : 'Tambah Dompet';
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           child: Form(
             key: _formKey,
             child: Column(
@@ -176,7 +178,7 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
               children: [
                 // Type Dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedType,
+                  initialValue: _selectedType,
                   decoration: InputDecoration(
                     label: const Text('Tipe Dompet'),
                     enabled: !isEditMode && !_isLoading,
@@ -221,7 +223,7 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
                           }
                         },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
 
                 // Wallet Name Field
                 TextFormField(
@@ -234,7 +236,7 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
                   validator: (value) =>
                       Validators.validateRequired(value, 'Nama dompet'),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
 
                 // Bank/E-Wallet Name Field (conditional)
                 if (_selectedType != 'cash') ...[
@@ -250,7 +252,7 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
                       _getBankNameLabel(_selectedType),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                 ],
 
                 // Account Number Field (conditional, only for bank)
@@ -265,7 +267,7 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
                     keyboardType: TextInputType.number,
                     validator: Validators.validateAccountNumber,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                 ],
 
                 // Initial Balance Field (only for create mode)
@@ -298,23 +300,23 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
                     },
                     validator: Validators.validateAmount,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpacing.lg),
                 ] else
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpacing.lg),
 
                 // Save Button
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: _isLoading ? null : _saveWallet,
                     child: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                                colorScheme.onPrimary,
                               ),
                             ),
                           )

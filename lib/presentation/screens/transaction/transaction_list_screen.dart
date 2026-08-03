@@ -17,8 +17,6 @@ class TransactionListScreen extends ConsumerStatefulWidget {
 }
 
 class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
-  String? _selectedType; // null = Semua, 'income', 'expense'
-
   @override
   void initState() {
     super.initState();
@@ -35,11 +33,13 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
       startDate: monthStart,
       endDate: monthEnd,
       type: currentType,
+      categoryId: ref.read(transactionFilterProvider).categoryId,
+      walletId: ref.read(transactionFilterProvider).walletId,
     );
+    _refreshTransactionQuery();
   }
 
   void _onTypeChanged(String? type) {
-    setState(() => _selectedType = type);
     final currentFilter = ref.read(transactionFilterProvider);
     final transactionType = type == 'income'
         ? TransactionType.income
@@ -50,7 +50,27 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
       startDate: currentFilter.startDate,
       endDate: currentFilter.endDate,
       type: transactionType,
+      categoryId: currentFilter.categoryId,
+      walletId: currentFilter.walletId,
     );
+    _refreshTransactionQuery();
+  }
+
+  void _onMonthStep(int offset) {
+    final current = ref.read(selectedMonthProvider);
+    final next = DateTime(current.year, current.month + offset);
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+
+    if (next.isAfter(currentMonth)) return;
+
+    ref.read(selectedMonthProvider.notifier).state = next;
+    _applyMonthFilter(next);
+  }
+
+  void _refreshTransactionQuery() {
+    ref.invalidate(transactionsProvider);
+    ref.invalidate(transactionListItemsProvider);
   }
 
   Future<void> _pickMonth() async {
@@ -82,97 +102,109 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final selectedMonth = ref.watch(selectedMonthProvider);
+    final selectedType = ref.watch(transactionFilterProvider).type?.value;
     final transactionsAsync = ref.watch(transactionListItemsProvider);
     final summaryAsync = ref.watch(monthlySummaryProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Riwayat Transaksi')),
-      body: Column(
-        children: [
-          // ── Filter bar ──────────────────────────────────────────────────
-          _FilterBar(
-            selectedType: _selectedType,
-            selectedMonth: selectedMonth,
-            onTypeChanged: _onTypeChanged,
-            onMonthTap: _pickMonth,
-          ),
-
-          // ── Summary bar ─────────────────────────────────────────────────
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: summaryAsync.when(
-              loading: () =>
-                  const _SummaryBarPlaceholder(key: ValueKey('loading')),
-              error: (_, __) => const SizedBox.shrink(key: ValueKey('error')),
-              data: (summary) {
-                final income = summary['income'] ?? 0;
-                final expense = summary['expense'] ?? 0;
-                final net = income - expense;
-                return _SummaryBar(
-                  key: ValueKey('$income:$expense:$net'),
-                  income: income,
-                  expense: expense,
-                  net: net,
-                );
-              },
-            ),
-          ),
-
-          // ── Transaction list ─────────────────────────────────────────────
-          Expanded(
-            child: transactionsAsync.when(
-              loading: () => const _TransactionListLoading(),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: AppColors.error,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Gagal memuat transaksi'),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => ref.invalidate(transactionsProvider),
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // ── Filter bar ──────────────────────────────────────────────────
+            _FilterBar(
+              selectedType: selectedType,
+              selectedMonth: selectedMonth,
+              onTypeChanged: _onTypeChanged,
+              onMonthTap: _pickMonth,
+              onPreviousMonth: () => _onMonthStep(-1),
+              onNextMonth: () => _onMonthStep(1),
+              canGoNext: !selectedMonth.isAtSameMomentAs(
+                DateTime(DateTime.now().year, DateTime.now().month),
               ),
-              data: (transactions) {
-                if (transactions.isEmpty) {
-                  return _EmptyState();
-                }
-                return RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      final item = transactions[index];
-                      if (item.isHeader) {
-                        return _DateHeader(date: item.date!);
-                      }
-                      return TransactionTile(
-                        transaction: item.transaction!,
-                        onTap: () => context.push(
-                          '/transactions/detail',
-                          extra: item.transaction,
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
             ),
-          ),
-        ],
+
+            // ── Summary bar ─────────────────────────────────────────────────
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: summaryAsync.when(
+                loading: () =>
+                    const _SummaryBarPlaceholder(key: ValueKey('loading')),
+                error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
+                data: (summary) {
+                  final income = summary['income'] ?? 0;
+                  final expense = summary['expense'] ?? 0;
+                  final net = income - expense;
+                  return _SummaryBar(
+                    key: ValueKey('$income:$expense:$net'),
+                    income: income,
+                    expense: expense,
+                    net: net,
+                  );
+                },
+              ),
+            ),
+
+            // ── Transaction list ─────────────────────────────────────────────
+            Expanded(
+              child: transactionsAsync.when(
+                loading: () => const _TransactionListLoading(),
+                error: (e, _) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: colorScheme.error,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('Gagal memuat transaksi'),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => ref.invalidate(transactionsProvider),
+                        child: const Text('Coba Lagi'),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (transactions) {
+                  if (transactions.isEmpty) {
+                    return _EmptyState();
+                  }
+                  return RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screenHorizontal,
+                        vertical: AppSpacing.xs,
+                      ),
+                      itemCount: transactions.length,
+                      itemBuilder: (context, index) {
+                        final item = transactions[index];
+                        if (item.isHeader) {
+                          return _DateHeader(date: item.date!);
+                        }
+                        return TransactionTile(
+                          transaction: item.transaction!,
+                          dense: true,
+                          showDivider: index < transactions.length - 1,
+                          onTap: () => context.push(
+                            '/transactions/detail',
+                            extra: item.transaction,
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -186,70 +218,42 @@ class _FilterBar extends StatelessWidget {
   final DateTime selectedMonth;
   final void Function(String?) onTypeChanged;
   final VoidCallback onMonthTap;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
+  final bool canGoNext;
 
   const _FilterBar({
     required this.selectedType,
     required this.selectedMonth,
     required this.onTypeChanged,
     required this.onMonthTap,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+    required this.canGoNext,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      color: colorScheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenHorizontal,
+        AppSpacing.sm,
+        AppSpacing.screenHorizontal,
+        AppSpacing.xs,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Type filter chips
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                spacing: 8,
-                children: [
-                  _TypeChip(
-                    label: 'Semua',
-                    isSelected: selectedType == null,
-                    onTap: () => onTypeChanged(null),
-                  ),
-                  _TypeChip(
-                    label: 'Pemasukan',
-                    isSelected: selectedType == 'income',
-                    onTap: () => onTypeChanged('income'),
-                    selectedColor: AppColors.income,
-                  ),
-                  _TypeChip(
-                    label: 'Pengeluaran',
-                    isSelected: selectedType == 'expense',
-                    onTap: () => onTypeChanged('expense'),
-                    selectedColor: AppColors.expense,
-                  ),
-                ],
-              ),
-            ),
+          _TypeFilterSegmentedControl(
+            selectedType: selectedType,
+            onTypeChanged: onTypeChanged,
           ),
-          const SizedBox(width: 8),
-          // Month picker button
-          OutlinedButton.icon(
-            onPressed: onMonthTap,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              side: BorderSide(color: colorScheme.outline),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            icon: const Icon(
-              Icons.calendar_month_outlined,
-              size: 16,
-              color: AppColors.textSecondary,
-            ),
-            label: Text(
-              DateFormatter.formatMonthYear(selectedMonth),
-              style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
-            ),
+          const SizedBox(height: AppSpacing.xs),
+          _MonthNavigation(
+            selectedMonth: selectedMonth,
+            onPreviousMonth: onPreviousMonth,
+            onNextMonth: canGoNext ? onNextMonth : null,
+            onMonthTap: onMonthTap,
           ),
         ],
       ),
@@ -257,44 +261,189 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
-class _TypeChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final Color selectedColor;
+class _TypeFilterSegmentedControl extends StatelessWidget {
+  final String? selectedType;
+  final void Function(String?) onTypeChanged;
 
-  const _TypeChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    this.selectedColor = AppColors.primary,
+  const _TypeFilterSegmentedControl({
+    required this.selectedType,
+    required this.onTypeChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? selectedColor.withOpacity(0.12)
-              : colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? selectedColor : colorScheme.outline,
-            width: isSelected ? 1.5 : 1,
+    final options = [
+      _TypeFilterOption(
+        label: 'Semua',
+        value: null,
+        flex: 4,
+        selectedColor: colorScheme.primaryContainer,
+        selectedForeground: colorScheme.onPrimaryContainer,
+      ),
+      _TypeFilterOption(
+        label: 'Pemasukan',
+        value: 'income',
+        flex: 9,
+        selectedColor: colorScheme.incomeContainer,
+        selectedForeground: colorScheme.onIncomeColor,
+      ),
+      _TypeFilterOption(
+        label: 'Pengeluaran',
+        value: 'expense',
+        flex: 11,
+        selectedColor: colorScheme.expenseContainer,
+        selectedForeground: colorScheme.onExpenseColor,
+      ),
+    ];
+
+    return Container(
+      height: AppComponentHeight.interactive,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: AppRadius.controlBorder,
+      ),
+      padding: const EdgeInsets.all(2),
+      child: Row(
+        children: [
+          for (final option in options)
+            Expanded(
+              flex: option.flex,
+              child: _TypeFilterSegment(
+                option: option,
+                isSelected: selectedType == option.value,
+                onTap: () => onTypeChanged(option.value),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TypeFilterOption {
+  final String label;
+  final String? value;
+  final int flex;
+  final Color selectedColor;
+  final Color selectedForeground;
+
+  const _TypeFilterOption({
+    required this.label,
+    required this.value,
+    required this.flex,
+    required this.selectedColor,
+    required this.selectedForeground,
+  });
+}
+
+class _TypeFilterSegment extends StatelessWidget {
+  final _TypeFilterOption option;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _TypeFilterSegment({
+    required this.option,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: 'Filter ${option.label}',
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: Material(
+          color: isSelected ? option.selectedColor : Colors.transparent,
+          borderRadius: AppRadius.smallBorder,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: AppRadius.smallBorder,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  option.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: isSelected
+                        ? option.selectedForeground
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected ? selectedColor : colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+class _MonthNavigation extends StatelessWidget {
+  final DateTime selectedMonth;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback? onNextMonth;
+  final VoidCallback onMonthTap;
+
+  const _MonthNavigation({
+    required this.selectedMonth,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+    required this.onMonthTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final monthLabel = DateFormatter.formatMonthYear(selectedMonth);
+
+    return Container(
+      height: AppComponentHeight.interactive,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.controlBorder,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onPreviousMonth,
+            tooltip: 'Bulan sebelumnya',
+            icon: const Icon(Icons.chevron_left),
           ),
-        ),
+          Expanded(
+            child: Semantics(
+              button: true,
+              label: 'Pilih bulan $monthLabel',
+              child: TextButton(
+                onPressed: onMonthTap,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, AppComponentHeight.interactive),
+                  padding: EdgeInsets.zero,
+                  foregroundColor: colorScheme.onSurface,
+                ),
+                child: Text(
+                  monthLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onNextMonth,
+            tooltip: 'Bulan berikutnya',
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
       ),
     );
   }
@@ -318,28 +467,42 @@ class _SummaryBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final netColor = net >= 0 ? AppColors.primary : AppColors.expense;
+    final brightness = colorScheme.brightness;
+    final netColor = net >= 0
+        ? AppColors.incomeForeground(brightness)
+        : AppColors.expenseForeground(brightness);
     return Container(
-      color: colorScheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.cardBorder,
+      ),
       child: Row(
         children: [
           Expanded(
             child: _SummaryStat(
               label: 'Pemasukan',
               amount: CurrencyFormatter.formatCompact(income),
-              color: AppColors.income,
+              color: AppColors.incomeForeground(brightness),
             ),
           ),
-          Container(width: 1, height: 32, color: AppColors.outlineVariant),
+          VerticalDivider(
+            width: AppSpacing.md,
+            thickness: AppBorder.subtleWidth,
+            color: colorScheme.outlineVariant,
+          ),
           Expanded(
             child: _SummaryStat(
               label: 'Pengeluaran',
               amount: CurrencyFormatter.formatCompact(expense),
-              color: AppColors.expense,
+              color: AppColors.expenseForeground(brightness),
             ),
           ),
-          Container(width: 1, height: 32, color: AppColors.outlineVariant),
+          VerticalDivider(
+            width: AppSpacing.md,
+            thickness: AppBorder.subtleWidth,
+            color: colorScheme.outlineVariant,
+          ),
           Expanded(
             child: _SummaryStat(
               label: 'Selisih',
@@ -361,16 +524,35 @@ class _SummaryBarPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: colorScheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.cardBorder,
+      ),
       child: Row(
         children: const [
           Expanded(child: _SummaryStatPlaceholder()),
-          SizedBox(width: 12),
+          _SummaryDividerPlaceholder(),
           Expanded(child: _SummaryStatPlaceholder()),
-          SizedBox(width: 12),
+          _SummaryDividerPlaceholder(),
           Expanded(child: _SummaryStatPlaceholder()),
         ],
+      ),
+    );
+  }
+}
+
+class _SummaryDividerPlaceholder extends StatelessWidget {
+  const _SummaryDividerPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      width: AppSpacing.md,
+      child: VerticalDivider(
+        thickness: AppBorder.subtleWidth,
+        color: Theme.of(context).colorScheme.outlineVariant,
       ),
     );
   }
@@ -407,11 +589,12 @@ class _SummaryStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 2),
         Text(
@@ -439,20 +622,22 @@ class _DateHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6, top: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        DateFormatter.formatFullDate(date),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
+      child: Row(
+        children: [
+          Text(
+            '${DateFormatter.getDayName(date)}, ${date.day} ${DateFormatter.getMonthName(date)}',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Divider(height: 1, color: colorScheme.outlineVariant),
+          ),
+        ],
       ),
     );
   }
@@ -477,17 +662,10 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'Belum ada transaksi',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurface,
-            ),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 4),
-          Text(
-            'di bulan ini',
-            style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
-          ),
+          Text('di bulan ini', style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
@@ -500,23 +678,33 @@ class _TransactionListLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenHorizontal,
+        vertical: AppSpacing.xs,
+      ),
       itemCount: 5,
+      separatorBuilder: (_, _) =>
+          Divider(height: 1, indent: 52, color: colorScheme.outlineVariant),
       itemBuilder: (_, index) => Padding(
-        padding: EdgeInsets.only(bottom: index == 4 ? 0 : 8),
-        child: Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: colorScheme.outlineVariant),
-          ),
-          child: const ListTile(
-            leading: _TransactionLoadingLeading(),
-            title: _TransactionLoadingLine(width: 132),
-            subtitle: _TransactionLoadingLine(width: 172, height: 10),
-            trailing: _TransactionLoadingLine(width: 72, height: 14),
-          ),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            const _TransactionLoadingLeading(),
+            const SizedBox(width: AppSpacing.sm),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TransactionLoadingLine(width: 132),
+                  SizedBox(height: AppSpacing.xs),
+                  _TransactionLoadingLine(width: 172, height: 10),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            _TransactionLoadingLine(width: index.isEven ? 84 : 72, height: 14),
+          ],
         ),
       ),
     );
@@ -528,13 +716,14 @@ class _TransactionLoadingLeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 40,
       height: 40,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.outlineVariant.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(10),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+          borderRadius: AppRadius.smallBorder,
         ),
       ),
     );
@@ -549,12 +738,13 @@ class _TransactionLoadingLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: AppColors.outlineVariant.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(999),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+        borderRadius: AppRadius.smallBorder,
       ),
     );
   }
@@ -599,6 +789,7 @@ class _MonthPickerDialogState extends State<_MonthPickerDialog> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
+    final colorScheme = Theme.of(context).colorScheme;
     return AlertDialog(
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -637,31 +828,33 @@ class _MonthPickerDialogState extends State<_MonthPickerDialog> {
                 month == widget.initialMonth.month &&
                 _year == widget.initialMonth.year;
 
-            return GestureDetector(
-              onTap: isFuture
-                  ? null
-                  : () => Navigator.of(context).pop(DateTime(_year, month)),
-              child: Container(
-                margin: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : null,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  _monthLabels[index],
-                  style: TextStyle(
+            return Padding(
+              padding: const EdgeInsets.all(3),
+              child: TextButton(
+                onPressed: isFuture
+                    ? null
+                    : () => Navigator.of(context).pop(DateTime(_year, month)),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 48),
+                  padding: EdgeInsets.zero,
+                  backgroundColor: isSelected
+                      ? colorScheme.primary
+                      : Colors.transparent,
+                  foregroundColor: isSelected
+                      ? colorScheme.onPrimary
+                      : colorScheme.onSurface,
+                  disabledForegroundColor: colorScheme.onSurfaceVariant,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.smallBorder,
+                  ),
+                  textStyle: TextStyle(
                     fontSize: 13,
                     fontWeight: isSelected
                         ? FontWeight.w600
                         : FontWeight.normal,
-                    color: isFuture
-                        ? AppColors.textTertiary
-                        : isSelected
-                        ? Colors.white
-                        : AppColors.textPrimary,
                   ),
                 ),
+                child: Text(_monthLabels[index]),
               ),
             );
           },

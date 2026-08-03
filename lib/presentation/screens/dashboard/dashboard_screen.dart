@@ -1,11 +1,14 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/constants.dart';
 import '../../../core/utils/utils.dart';
 import '../../../domain/entities/entities.dart';
+import '../../icons/app_icons.dart';
 import '../../providers/providers.dart';
+import '../../widgets/app_section_header.dart';
+import '../../widgets/money_metric.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -43,34 +46,38 @@ class _DashboardScaffold extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: colorScheme.surfaceContainerLowest,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: colorScheme.surfaceContainerLow,
         foregroundColor: colorScheme.onSurface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const _CashbookSwitcher(),
         actions: const [_DashboardAvatar()],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(walletsProvider);
-          ref.invalidate(totalBalanceProvider);
-          ref.invalidate(monthlySummaryProvider);
-          await Future.wait([
-            ref
-                .read(walletsProvider.future)
-                .catchError((_) => <WalletEntity>[]),
-            ref.read(totalBalanceProvider.future).catchError((_) => 0),
-            ref
-                .read(monthlySummaryProvider.future)
-                .catchError((_) => <String, int>{}),
-          ]);
-        },
-        child: const _DashboardBody(),
+      body: SafeArea(
+        top: false,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(walletsProvider);
+            ref.invalidate(totalBalanceProvider);
+            ref.invalidate(monthlySummaryProvider);
+            await Future.wait([
+              ref
+                  .read(walletsProvider.future)
+                  .catchError((_) => <WalletEntity>[]),
+              ref.read(totalBalanceProvider.future).catchError((_) => 0),
+              ref
+                  .read(monthlySummaryProvider.future)
+                  .catchError((_) => <String, int>{}),
+            ]);
+          },
+          child: const _DashboardBody(),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: onAddTransaction,
-        icon: const Icon(Icons.add),
+        icon: const Icon(AppIcons.add),
         label: const Text('Transaksi Baru'),
       ),
       bottomNavigationBar: const _DashboardBottomNav(),
@@ -120,10 +127,10 @@ class _DashboardAvatar extends ConsumerWidget {
       data: (user) => Padding(
         padding: const EdgeInsets.only(right: 12),
         child: CircleAvatar(
-          backgroundColor: colorScheme.primaryContainer,
+          backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
           child: Text(
             _initial(user?.displayName),
-            style: TextStyle(color: colorScheme.onPrimaryContainer),
+            style: TextStyle(color: colorScheme.primary),
           ),
         ),
       ),
@@ -136,10 +143,9 @@ class _DashboardBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: 0,
-      type: BottomNavigationBarType.fixed,
-      onTap: (index) {
+    return NavigationBar(
+      selectedIndex: 0,
+      onDestinationSelected: (index) {
         switch (index) {
           case 0:
             break;
@@ -154,25 +160,25 @@ class _DashboardBottomNav extends StatelessWidget {
             break;
         }
       },
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home),
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(AppIcons.dashboard),
+          selectedIcon: Icon(AppIcons.dashboardSelected),
           label: 'Dashboard',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.receipt_long_outlined),
-          activeIcon: Icon(Icons.receipt_long),
+        NavigationDestination(
+          icon: Icon(AppIcons.transactions),
+          selectedIcon: Icon(AppIcons.transactionsSelected),
           label: 'Transaksi',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.bar_chart_outlined),
-          activeIcon: Icon(Icons.bar_chart),
+        NavigationDestination(
+          icon: Icon(AppIcons.reports),
+          selectedIcon: Icon(AppIcons.reportsSelected),
           label: 'Laporan',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.settings_outlined),
-          activeIcon: Icon(Icons.settings),
+        NavigationDestination(
+          icon: Icon(AppIcons.settings),
+          selectedIcon: Icon(AppIcons.settingsSelected),
           label: 'Pengaturan',
         ),
       ],
@@ -182,10 +188,11 @@ class _DashboardBottomNav extends StatelessWidget {
 
 void _showAddTransactionSheet(BuildContext context) {
   final colorScheme = Theme.of(context).colorScheme;
+  final semanticColors = context.semanticColors;
   showModalBottomSheet(
     context: context,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      borderRadius: AppRadius.prominentTopBorder,
     ),
     builder: (_) => SafeArea(
       child: Column(
@@ -213,12 +220,10 @@ void _showAddTransactionSheet(BuildContext context) {
           ),
           const SizedBox(height: 8),
           ListTile(
-            leading: CircleAvatar(
-              backgroundColor: colorScheme.primaryContainer,
-              child: Icon(
-                Icons.arrow_downward,
-                color: colorScheme.onPrimaryContainer,
-              ),
+            leading: Icon(
+              AppIcons.forTransactionType(TransactionType.income),
+              color: semanticColors.onIncomeContainer,
+              size: AppIconSize.regular,
             ),
             title: const Text('Pemasukan'),
             subtitle: const Text('Catat uang masuk'),
@@ -231,12 +236,10 @@ void _showAddTransactionSheet(BuildContext context) {
             },
           ),
           ListTile(
-            leading: CircleAvatar(
-              backgroundColor: colorScheme.errorContainer,
-              child: Icon(
-                Icons.arrow_upward,
-                color: colorScheme.onErrorContainer,
-              ),
+            leading: Icon(
+              AppIcons.forTransactionType(TransactionType.expense),
+              color: semanticColors.onExpenseContainer,
+              size: AppIconSize.regular,
             ),
             title: const Text('Pengeluaran'),
             subtitle: const Text('Catat uang keluar'),
@@ -249,12 +252,10 @@ void _showAddTransactionSheet(BuildContext context) {
             },
           ),
           ListTile(
-            leading: CircleAvatar(
-              backgroundColor: colorScheme.secondaryContainer,
-              child: Icon(
-                Icons.swap_horiz,
-                color: colorScheme.onSecondaryContainer,
-              ),
+            leading: Icon(
+              AppIcons.transfer,
+              color: semanticColors.onTransferContainer,
+              size: AppIconSize.regular,
             ),
             title: const Text('Transfer'),
             subtitle: const Text('Pindahkan saldo antar dompet'),
@@ -287,7 +288,7 @@ class _CashbookSwitcher extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: AppRadius.prominentTopBorder,
       ),
       builder: (_) => SafeArea(
         child: Column(
@@ -304,10 +305,14 @@ class _CashbookSwitcher extends ConsumerWidget {
             const Divider(height: 1),
             ...cashbooks.map(
               (cb) => ListTile(
-                leading: Icon(
-                  Icons.book_outlined,
-                  color: cb.cashbookId == activeCashbook?.cashbookId
-                      ? colorScheme.primary
+                leading: SizedBox(
+                  width: AppIconSize.regular,
+                  child: cb.cashbookId == activeCashbook?.cashbookId
+                      ? Icon(
+                          AppIcons.selected,
+                          color: colorScheme.primary,
+                          semanticLabel: 'Buku kas aktif',
+                        )
                       : null,
                 ),
                 title: Text(cb.cashbookName),
@@ -321,10 +326,10 @@ class _CashbookSwitcher extends ConsumerWidget {
                           color: colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Utama',
                           style: TextStyle(
-                            color: AppColors.primary,
+                            color: colorScheme.onPrimaryContainer,
                             fontSize: 12,
                           ),
                         ),
@@ -340,13 +345,13 @@ class _CashbookSwitcher extends ConsumerWidget {
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(
-                Icons.settings_outlined,
-                color: AppColors.primary,
+              leading: Icon(
+                AppIcons.manageCashbooks,
+                color: colorScheme.primary,
               ),
-              title: const Text(
+              title: Text(
                 'Kelola Buku Kas',
-                style: TextStyle(color: AppColors.primary),
+                style: TextStyle(color: colorScheme.primary),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -365,27 +370,53 @@ class _CashbookSwitcher extends ConsumerWidget {
     final cashbooksAsync = ref.watch(cashbooksProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTap: () {
-        cashbooksAsync.whenData(
-          (cashbooks) =>
-              _showBottomSheet(context, ref, activeCashbook, cashbooks),
-        );
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            activeCashbook?.cashbookName ?? 'Pilih Buku Kas',
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+    final cashbookName = activeCashbook?.cashbookName ?? 'Belum dipilih';
+    return Semantics(
+      button: true,
+      label: 'Pilih buku kas. Saat ini $cashbookName',
+      excludeSemantics: true,
+      child: Tooltip(
+        message: 'Pilih buku kas',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: AppRadius.controlBorder,
+            onTap: () {
+              cashbooksAsync.whenData(
+                (cashbooks) =>
+                    _showBottomSheet(context, ref, activeCashbook, cashbooks),
+              );
+            },
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: AppComponentHeight.interactive,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      activeCashbook?.cashbookName ?? 'Pilih Buku Kas',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    AppIcons.dropdown,
+                    color: colorScheme.onSurfaceVariant,
+                    size: AppIconSize.small,
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 4),
-          Icon(Icons.arrow_drop_down, color: colorScheme.onSurface),
-        ],
+        ),
       ),
     );
   }
@@ -406,17 +437,19 @@ class _TotalBalanceCard extends ConsumerWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [colorScheme.primaryContainer, colorScheme.primary],
-        ),
+        color: colorScheme.primaryContainer,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+          bottomLeft: Radius.circular(AppRadius.prominent),
+          bottomRight: Radius.circular(AppRadius.prominent),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenHorizontal,
+        AppSpacing.xs,
+        AppSpacing.screenHorizontal,
+        AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -432,10 +465,13 @@ class _TotalBalanceCard extends ConsumerWidget {
             child: totalBalanceAsync.when(
               loading: () =>
                   const _TotalBalanceLoading(key: ValueKey('loading')),
-              error: (_, __) => const Text(
-                'â€”',
-                key: ValueKey('error'),
-                style: TextStyle(color: Colors.white, fontSize: 28),
+              error: (_, __) => Text(
+                '—',
+                key: const ValueKey('error'),
+                style: TextStyle(
+                  color: colorScheme.onPrimaryContainer,
+                  fontSize: 28,
+                ),
               ),
               data: (total) => Text(
                 CurrencyFormatter.format(total),
@@ -485,25 +521,18 @@ class _MonthlySection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
     final summaryAsync = ref.watch(monthlySummaryProvider);
     final selectedMonth = ref.watch(selectedMonthProvider);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: AppSpacing.screenPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Ringkasan ${DateFormatter.formatMonthYear(selectedMonth)}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ],
+          AppSectionHeader(
+            title: 'Ringkasan ${DateFormatter.formatMonthYear(selectedMonth)}',
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.xs),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: summaryAsync.when(
@@ -514,29 +543,10 @@ class _MonthlySection extends ConsumerWidget {
               data: (summary) {
                 final income = summary['income'] ?? 0;
                 final expense = summary['expense'] ?? 0;
-                return Row(
+                return _MonthlySummarySurface(
                   key: ValueKey('$income:$expense'),
-                  children: [
-                    Expanded(
-                      child: _SummaryTile(
-                        label: 'Pemasukan',
-                        amount: income,
-                        icon: Icons.arrow_downward,
-                        color: colorScheme.primary,
-                        backgroundColor: colorScheme.surfaceContainerHigh,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _SummaryTile(
-                        label: 'Pengeluaran',
-                        amount: expense,
-                        icon: Icons.arrow_upward,
-                        color: colorScheme.secondary,
-                        backgroundColor: colorScheme.surfaceContainerHigh,
-                      ),
-                    ),
-                  ],
+                  income: income,
+                  expense: expense,
                 );
               },
             ),
@@ -552,92 +562,109 @@ class _MonthlySummaryLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(child: _SummaryTilePlaceholder()),
-        SizedBox(width: 12),
-        Expanded(child: _SummaryTilePlaceholder()),
-      ],
-    );
-  }
-}
-
-class _SummaryTilePlaceholder extends StatelessWidget {
-  const _SummaryTilePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      height: 72,
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.surfaceContainer,
+        borderRadius: AppRadius.cardBorder,
       ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: const Row(
         children: [
-          Container(width: 64, height: 10, color: colorScheme.outlineVariant),
-          const SizedBox(height: 12),
-          Container(width: 88, height: 16, color: colorScheme.outlineVariant),
+          Expanded(child: _SummaryMetricPlaceholder()),
+          _SummaryDivider(),
+          Expanded(child: _SummaryMetricPlaceholder()),
         ],
       ),
     );
   }
 }
 
-class _SummaryTile extends StatelessWidget {
-  final String label;
-  final int amount;
-  final IconData icon;
-  final Color color;
-  final Color backgroundColor;
+class _SummaryMetricPlaceholder extends StatelessWidget {
+  const _SummaryMetricPlaceholder();
 
-  const _SummaryTile({
-    required this.label,
-    required this.amount,
-    required this.icon,
-    required this.color,
-    required this.backgroundColor,
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 64,
+          height: 10,
+          decoration: BoxDecoration(
+            color: colorScheme.outlineVariant,
+            borderRadius: AppRadius.smallBorder,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Container(
+          width: 88,
+          height: 16,
+          decoration: BoxDecoration(
+            color: colorScheme.outlineVariant,
+            borderRadius: AppRadius.smallBorder,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryDivider extends StatelessWidget {
+  const _SummaryDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: VerticalDivider(
+        width: AppSpacing.lg,
+        thickness: AppBorder.subtleWidth,
+        color: Theme.of(context).colorScheme.outlineVariant,
+      ),
+    );
+  }
+}
+
+class _MonthlySummarySurface extends StatelessWidget {
+  final int income;
+  final int expense;
+
+  const _MonthlySummarySurface({
+    super.key,
+    required this.income,
+    required this.expense,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: backgroundColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: AppRadius.cardBorder,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: MoneyMetric(
+              label: 'Pemasukan',
+              value: CurrencyFormatter.format(income),
+              type: MoneyMetricType.income,
             ),
-            const SizedBox(height: 4),
-            Text(
-              CurrencyFormatter.format(amount),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-              ),
+          ),
+          const _SummaryDivider(),
+          Expanded(
+            child: MoneyMetric(
+              label: 'Pengeluaran',
+              value: CurrencyFormatter.format(expense),
+              type: MoneyMetricType.expense,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -659,16 +686,11 @@ class _WalletSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Dompet', style: Theme.of(context).textTheme.titleMedium),
-              TextButton(
-                onPressed: () => context.push('/wallets'),
-                child: const Text('Lihat Semua'),
-              ),
-            ],
+          padding: AppSpacing.screenPadding,
+          child: AppSectionHeader(
+            title: 'Dompet',
+            actionLabel: 'Lihat Semua',
+            onAction: () => context.push('/wallets'),
           ),
         ),
         AnimatedSwitcher(
@@ -676,12 +698,12 @@ class _WalletSection extends ConsumerWidget {
           child: walletsAsync.when(
             loading: () => const Padding(
               key: ValueKey('loading'),
-              padding: EdgeInsets.all(16),
+              padding: AppSpacing.screenPadding,
               child: _WalletLoadingStrip(),
             ),
             error: (_, __) => Padding(
               key: const ValueKey('error'),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: AppSpacing.screenPadding,
               child: Text(
                 'Gagal memuat dompet',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -693,27 +715,27 @@ class _WalletSection extends ConsumerWidget {
               if (wallets.isEmpty) {
                 return Padding(
                   key: const ValueKey('empty'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.screenHorizontal,
+                    right: AppSpacing.screenHorizontal,
+                    top: AppSpacing.xs,
                   ),
-                  child: Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: colorScheme.outlineVariant),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerLow,
+                      borderRadius: AppRadius.cardBorder,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                       child: Center(
                         child: Column(
                           children: [
                             Icon(
-                              Icons.account_balance_wallet_outlined,
-                              size: 40,
+                              AppIcons.walletFallback,
+                              size: AppIconSize.object,
                               color: colorScheme.onSurfaceVariant,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppSpacing.xs),
                             Text(
                               'Belum ada dompet',
                               style: Theme.of(context).textTheme.bodyMedium
@@ -732,16 +754,25 @@ class _WalletSection extends ConsumerWidget {
                   ),
                 );
               }
-              return SizedBox(
+              return LayoutBuilder(
                 key: ValueKey(wallets.length),
-                height: 120,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: wallets.length,
-                  itemBuilder: (_, index) =>
-                      _WalletCard(wallet: wallets[index]),
-                ),
+                builder: (context, constraints) {
+                  final cardWidth = (constraints.maxWidth * 0.78)
+                      .clamp(240.0, 280.0)
+                      .toDouble();
+                  return SizedBox(
+                    height: AppComponentHeight.walletCard,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screenHorizontal - 4,
+                      ),
+                      itemCount: wallets.length,
+                      itemBuilder: (_, index) =>
+                          _WalletCard(wallet: wallets[index], width: cardWidth),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -757,46 +788,64 @@ class _WalletLoadingStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 120,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: 3,
-        itemBuilder: (_, __) => Container(
-          width: 160,
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  color: colorScheme.outlineVariant,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = (constraints.maxWidth * 0.78)
+            .clamp(240.0, 280.0)
+            .toDouble();
+        return SizedBox(
+          height: AppComponentHeight.walletCard,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenHorizontal - 4,
+            ),
+            itemCount: 3,
+            itemBuilder: (_, __) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Container(
+                width: cardWidth,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHigh,
+                  borderRadius: AppRadius.cardBorder,
                 ),
-                const Spacer(),
-                Container(
-                  width: 96,
-                  height: 12,
-                  color: colorScheme.outlineVariant,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: AppIconSize.regular,
+                      height: AppIconSize.regular,
+                      decoration: BoxDecoration(
+                        color: colorScheme.outlineVariant,
+                        borderRadius: AppRadius.smallBorder,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 96,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: colorScheme.outlineVariant,
+                        borderRadius: AppRadius.smallBorder,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Container(
+                      width: 72,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: colorScheme.outlineVariant,
+                        borderRadius: AppRadius.smallBorder,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  width: 72,
-                  height: 10,
-                  color: colorScheme.outlineVariant,
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -807,76 +856,75 @@ class _WalletLoadingStrip extends StatelessWidget {
 
 class _WalletCard extends StatelessWidget {
   final WalletEntity wallet;
+  final double width;
 
-  const _WalletCard({required this.wallet});
+  const _WalletCard({required this.wallet, required this.width});
 
-  Color _cardColor(BuildContext context, WalletType type) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    switch (type) {
-      case WalletType.cash:
-        return isDark ? AppColors.darkMintContainer : AppColors.mint;
-      case WalletType.bankAcc:
-        return isDark ? AppColors.darkPrimaryContainer : AppColors.primary;
-      case WalletType.eWallet:
-        return isDark ? AppColors.darkLavenderContainer : AppColors.lavender;
-    }
-  }
-
-  IconData _cardIcon(WalletType type) {
-    switch (type) {
-      case WalletType.cash:
-        return Icons.payments_outlined;
-      case WalletType.bankAcc:
-        return Icons.account_balance_outlined;
-      case WalletType.eWallet:
-        return Icons.phone_android_outlined;
-    }
+  WalletPaletteEntry _paletteEntry(BuildContext context) {
+    final palette = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.darkWalletPalette
+        : AppColors.lightWalletPalette;
+    final index = switch (wallet.type) {
+      WalletType.cash => 3,
+      WalletType.bankAcc => 0,
+      WalletType.eWallet => 1,
+    };
+    return palette[index];
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = _cardColor(context, wallet.type);
-    final foregroundColor = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
+    final paletteEntry = _paletteEntry(context);
+    final color = paletteEntry.background;
+    final foregroundColor = paletteEntry.foreground;
 
-    return GestureDetector(
-      onTap: () => context.push('/wallets/detail', extra: wallet),
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color, color.withValues(alpha: 0.82)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(_cardIcon(wallet.type), color: foregroundColor, size: 24),
-            const Spacer(),
-            Text(
-              wallet.walletName,
-              style: TextStyle(
-                color: foregroundColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: SizedBox(
+        width: width,
+        child: Semantics(
+          button: true,
+          label:
+              '${wallet.walletName}, ${CurrencyFormatter.format(wallet.currentBalance)}',
+          child: Material(
+            color: color,
+            borderRadius: AppRadius.cardBorder,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => context.push('/wallets/detail', extra: wallet),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      AppIcons.forWalletType(wallet.type),
+                      color: foregroundColor,
+                      size: AppIconSize.object,
+                    ),
+                    const Spacer(),
+                    Text(
+                      wallet.walletName,
+                      style: TextStyle(
+                        color: foregroundColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      CurrencyFormatter.format(wallet.currentBalance),
+                      style: TextStyle(color: foregroundColor, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
-            Text(
-              CurrencyFormatter.format(wallet.currentBalance),
-              style: TextStyle(color: foregroundColor, fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -951,17 +999,16 @@ class _TutorialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isStep1 = step == 1;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(20),
+      color: colorScheme.surface,
+      elevation: AppElevation.raised,
+      borderRadius: AppRadius.cardBorder,
+      clipBehavior: Clip.antiAlias,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -974,7 +1021,7 @@ class _TutorialCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    color: colorScheme.primary,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -990,15 +1037,13 @@ class _TutorialCard extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
+                color: colorScheme.primaryContainer,
+                borderRadius: AppRadius.controlBorder,
               ),
               child: Icon(
-                isStep1
-                    ? Icons.menu_book_rounded
-                    : Icons.account_balance_wallet_rounded,
-                color: AppColors.primary,
-                size: 28,
+                isStep1 ? AppIcons.cashbook : AppIcons.walletFallback,
+                color: colorScheme.onPrimaryContainer,
+                size: AppIconSize.hero,
               ),
             ),
             const SizedBox(height: 16),
@@ -1016,7 +1061,7 @@ class _TutorialCard extends StatelessWidget {
                   ? 'Buku Kas adalah tempat untuk mengelompokkan transaksi dan dompet Anda. Mulai dengan membuat buku kas pertama.'
                   : 'Dompet mewakili akun keuangan Anda (tunai, rekening bank, atau e-wallet). Tambahkan dompet pertama Anda.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
+                color: colorScheme.onSurfaceVariant,
                 height: 1.5,
               ),
             ),
@@ -1025,7 +1070,7 @@ class _TutorialCard extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: onAction,
-                icon: const Icon(Icons.add),
+                icon: const Icon(AppIcons.add),
                 label: Text(isStep1 ? 'Buat Buku Kas' : 'Buat Dompet'),
               ),
             ),
@@ -1048,20 +1093,21 @@ class _StepDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: 28,
       height: 28,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: active
-            ? AppColors.primary
-            : AppColors.primary.withValues(alpha: 0.2),
+        color: active ? colorScheme.primary : colorScheme.primaryContainer,
       ),
       child: Center(
         child: Text(
           label,
           style: TextStyle(
-            color: active ? Colors.white : AppColors.primary,
+            color: active
+                ? colorScheme.onPrimary
+                : colorScheme.onPrimaryContainer,
             fontSize: 12,
             fontWeight: FontWeight.bold,
           ),

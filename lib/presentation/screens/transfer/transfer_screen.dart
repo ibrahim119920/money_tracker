@@ -39,6 +39,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
+      locale: const Locale('id', 'ID'),
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -83,10 +84,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       final messenger = ScaffoldMessenger.of(context);
       context.go(AppRoutes.dashboard);
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Transfer berhasil ditambahkan'),
-          backgroundColor: AppColors.success,
-        ),
+        const SnackBar(content: Text('Transfer berhasil ditambahkan')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -98,9 +96,9 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           ? 'Tidak dapat transfer ke dompet yang sama'
           : 'Gagal menyimpan transfer. Silakan coba lagi.';
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -119,50 +117,62 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final walletsAsync = ref.watch(walletsProvider);
     final transfersAsync = ref.watch(transfersProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transfer Antar Dompet'),
-        backgroundColor: AppColors.transfer,
-        foregroundColor: Colors.white,
+        backgroundColor: colorScheme.transferContainer,
+        foregroundColor: colorScheme.onTransferColor,
+        iconTheme: IconThemeData(color: colorScheme.onTransferColor),
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: colorScheme.onTransferColor,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildTransferForm(walletsAsync),
-            const SizedBox(height: 20),
-            const Text(
-              'Riwayat Transfer',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      body: SafeArea(
+        top: false,
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.screenHorizontal,
+              AppSpacing.md,
+              AppSpacing.screenHorizontal,
+              AppSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
             ),
-            const SizedBox(height: 8),
-            _buildTransferHistory(transfersAsync),
-          ],
+            children: [
+              _buildTransferForm(walletsAsync),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Riwayat Transfer',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              _buildTransferHistory(transfersAsync),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildTransferForm(AsyncValue<List<WalletEntity>> walletsAsync) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
+      color: colorScheme.surfaceContainerLow,
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: walletsAsync.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(child: CircularProgressIndicator()),
           ),
-          error: (_, __) => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
+          error: (_, _) => const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Text('Gagal memuat dompet'),
           ),
           data: (wallets) {
@@ -192,11 +202,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _fromWalletId,
+                    initialValue: _fromWalletId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Dari Dompet *',
-                      border: OutlineInputBorder(),
                     ),
                     items: wallets.map((wallet) {
                       return DropdownMenuItem<String>(
@@ -215,14 +224,11 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                     validator: (value) =>
                         value == null ? 'Dompet asal harus dipilih' : null,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
                   DropdownButtonFormField<String>(
-                    value: _toWalletId,
+                    initialValue: _toWalletId,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Ke Dompet *',
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(labelText: 'Ke Dompet *'),
                     items: toWalletOptions.map((wallet) {
                       return DropdownMenuItem<String>(
                         value: wallet.walletId,
@@ -238,7 +244,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
                   TextFormField(
                     controller: _amountController,
                     keyboardType: TextInputType.number,
@@ -246,31 +252,30 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Jumlah Transfer *',
                       prefixText: 'Rp ',
-                      border: OutlineInputBorder(),
                     ),
                     validator: Validators.validateAmount,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
                   InkWell(
                     onTap: _pickDate,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: AppRadius.controlBorder,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
                       ),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.outline),
+                        color: colorScheme.surfaceContainer,
+                        borderRadius: AppRadius.controlBorder,
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.calendar_today_outlined,
-                            size: 18,
-                            color: AppColors.textSecondary,
+                            size: AppIconSize.small,
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: AppSpacing.sm),
                           Text(
                             DateFormatter.formatFullDate(_selectedDate),
                             style: const TextStyle(fontSize: 16),
@@ -279,38 +284,34 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
                   TextFormField(
                     controller: _notesController,
                     maxLines: 3,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       labelText: 'Catatan',
-                      border: OutlineInputBorder(),
                       alignLabelWithHint: true,
                     ),
                     validator: Validators.validateNotes,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
+                    height: AppComponentHeight.interactive,
+                    child: FilledButton.icon(
                       onPressed: _isSaving ? null : _saveTransfer,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.transfer,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colorScheme.transferColor,
+                        foregroundColor: colorScheme.onTransferColor,
                       ),
                       icon: _isSaving
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: colorScheme.onTransferColor,
                               ),
                             )
                           : const Icon(Icons.swap_horiz),
@@ -333,16 +334,21 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   ) {
     return transfersAsync.when(
       loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => Card(
+      error: (_, _) => Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: AppRadius.cardBorder,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.zero,
           child: Column(
             children: [
               const Text('Gagal memuat riwayat transfer'),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.xs),
               TextButton(
                 onPressed: () => ref.invalidate(transfersProvider),
                 child: const Text('Coba Lagi'),
@@ -353,69 +359,108 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       ),
       data: (transfers) {
         if (transfers.isEmpty) {
+          final colorScheme = Theme.of(context).colorScheme;
           return Container(
-            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.outlineVariant),
-              color: Colors.white,
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.xl,
+              horizontal: AppSpacing.md,
             ),
-            child: const Column(
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.cardBorder,
+              color: colorScheme.surfaceContainerLow,
+            ),
+            child: Column(
               children: [
                 Icon(
                   Icons.swap_horiz,
                   size: 44,
-                  color: AppColors.textSecondary,
+                  color: colorScheme.onSurfaceVariant,
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Belum ada transfer',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ],
             ),
           );
         }
 
-        return Column(
-          children: transfers.map((transfer) {
-            return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.transfer.withValues(alpha: 0.12),
-                  child: const Icon(
-                    Icons.swap_horiz,
-                    color: AppColors.transfer,
-                  ),
-                ),
-                title: Text(
-                  '${transfer.fromWalletName ?? 'Dompet Asal'} -> ${transfer.toWalletName ?? 'Dompet Tujuan'}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Text(DateFormatter.formatLongDate(transfer.transferDate)),
-                    if ((transfer.notes ?? '').trim().isNotEmpty)
-                      Text(
-                        transfer.notes!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+        final colorScheme = Theme.of(context).colorScheme;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: AppRadius.cardBorder,
+          ),
+          child: Column(
+            children: transfers.asMap().entries.map((entry) {
+              final index = entry.key;
+              final transfer = entry.value;
+              return Column(
+                children: [
+                  ListTile(
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: colorScheme.transferContainer,
+                        borderRadius: AppRadius.smallBorder,
                       ),
-                  ],
-                ),
-                trailing: Text(
-                  CurrencyFormatter.format(transfer.amount),
-                  style: const TextStyle(
-                    color: AppColors.transfer,
-                    fontWeight: FontWeight.w700,
+                      child: Icon(
+                        Icons.swap_horiz,
+                        color: colorScheme.transferColor,
+                      ),
+                    ),
+                    title: Text(
+                      '${transfer.fromWalletName ?? 'Dompet Asal'} → ${transfer.toWalletName ?? 'Dompet Tujuan'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          DateFormatter.formatLongDate(transfer.transferDate),
+                        ),
+                        if ((transfer.notes ?? '').trim().isNotEmpty)
+                          Text(
+                            transfer.notes!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                    trailing: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 112),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          CurrencyFormatter.format(transfer.amount),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: colorScheme.transferColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          }).toList(),
+                  if (index < transfers.length - 1)
+                    const Divider(height: 1, indent: 52),
+                ],
+              );
+            }).toList(),
+          ),
         );
       },
     );
@@ -429,9 +474,10 @@ class _WalletDropdownItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Icon(_walletIcon(wallet.type), size: 18, color: AppColors.primary),
+        Icon(_walletIcon(wallet.type), size: 18, color: colorScheme.primary),
         const SizedBox(width: 8),
         Expanded(
           child: Text(wallet.walletName, overflow: TextOverflow.ellipsis),
@@ -439,7 +485,7 @@ class _WalletDropdownItem extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           CurrencyFormatter.formatCompact(wallet.currentBalance),
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
       ],
     );

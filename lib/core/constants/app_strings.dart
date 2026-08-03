@@ -9,6 +9,9 @@ class AppStrings {
   static const String loginPassword = 'Password';
   static const String loginButton = 'Masuk';
   static const String loginError = 'Email atau password salah';
+  static const String googleLoginButton = 'Lanjutkan dengan Google';
+  static const String googleLoginError =
+      'Gagal masuk dengan Google. Coba lagi.';
   static const String noAccount = 'Belum punya akun?';
   static const String registerHere = 'Daftar di sini';
 

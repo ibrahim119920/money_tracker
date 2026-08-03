@@ -26,18 +26,29 @@ class TransactionDetailScreen extends ConsumerWidget {
         detailTransaction.notes != description;
 
     final isIncome = detailTransaction.type == TransactionType.income;
-    final appBarColor = isIncome ? colorScheme.primary : colorScheme.error;
+    final heroBackground = isIncome
+        ? colorScheme.incomeContainer
+        : colorScheme.expenseContainer;
+    final heroForeground = isIncome
+        ? colorScheme.onIncomeColor
+        : colorScheme.onExpenseColor;
 
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: colorScheme.onSurface,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
         elevation: 0,
         title: const Text('Detail Transaksi'),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
+            tooltip: 'Edit transaksi',
             onPressed: () => context.push(
               '/transactions/form',
               extra: {'type': transaction.type, 'transaction': transaction},
@@ -45,127 +56,137 @@ class TransactionDetailScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
+            tooltip: 'Hapus transaksi',
             onPressed: () => _confirmDelete(context, ref),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Hero Card - Amount Section
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [appBarColor, appBarColor.withValues(alpha: 0.75)],
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            children: [
+              // Hero Card - Amount Section
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: heroBackground,
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(AppRadius.prominent),
+                  ),
                 ),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-              child: Column(
-                children: [
-                  if (transactionAsync.isLoading)
-                    const LinearProgressIndicator(minHeight: 2),
-
-                  Text(
-                    CurrencyFormatter.format(detailTransaction.amount),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colorScheme.onPrimary,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    isIncome ? 'Pemasukan' : 'Pengeluaran',
-                    style: TextStyle(
-                      color: colorScheme.onPrimary.withValues(alpha: 0.9),
-                      fontSize: 14,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormatter.formatFullDate(
-                      detailTransaction.transactionDate,
-                    ),
-                    style: TextStyle(
-                      color: colorScheme.onPrimary.withValues(alpha: 0.9),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Detail Rows
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: colorScheme.outlineVariant),
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.xl,
+                  horizontal: AppSpacing.screenHorizontal,
                 ),
                 child: Column(
                   children: [
-                    _DetailRow(
-                      icon: Icons.category_outlined,
-                      label: 'Kategori',
-                      value: detailTransaction.categoryName ?? '-',
+                    if (transactionAsync.isLoading)
+                      const LinearProgressIndicator(minHeight: 2),
+
+                    Text(
+                      CurrencyFormatter.format(detailTransaction.amount),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: heroForeground,
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const Divider(height: 1, indent: 56),
-                    _DetailRow(
-                      icon: Icons.account_balance_wallet_outlined,
-                      label: 'Dompet',
-                      value: detailTransaction.walletName ?? '-',
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      isIncome ? 'Pemasukan' : 'Pengeluaran',
+                      style: TextStyle(
+                        color: heroForeground.withValues(alpha: 0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                      ),
                     ),
-                    const Divider(height: 1, indent: 56),
-                    _DetailRow(
-                      icon: Icons.calendar_today,
-                      label: 'Tanggal',
-                      value: DateFormatter.formatFullDate(
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      DateFormatter.formatFullDate(
                         detailTransaction.transactionDate,
                       ),
-                    ),
-                    const Divider(height: 1, indent: 56),
-                    _DetailRow(
-                      icon: Icons.notes,
-                      label: 'Keterangan',
-                      value: description ?? '-',
-                    ),
-                    if (hasExtraNotes) ...[
-                      const Divider(height: 1, indent: 56),
-                      _DetailRow(
-                        icon: Icons.sticky_note_2,
-                        label: 'Catatan',
-                        value: detailTransaction.notes ?? '-',
+                      style: TextStyle(
+                        color: heroForeground.withValues(alpha: 0.9),
+                        fontSize: 12,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            ),
 
-            // Delete Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Hapus Transaksi'),
-                onPressed: () => _confirmDelete(context, ref),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colorScheme.error,
-                  side: BorderSide(color: colorScheme.error),
-                  minimumSize: const Size(double.infinity, 48),
+              // Detail Rows
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenHorizontal,
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: AppRadius.cardBorder,
+                  ),
+                  child: Column(
+                    children: [
+                      _DetailRow(
+                        icon: Icons.category_outlined,
+                        label: 'Kategori',
+                        value: detailTransaction.categoryName ?? '-',
+                      ),
+                      const Divider(height: 1, indent: 56),
+                      _DetailRow(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Dompet',
+                        value: detailTransaction.walletName ?? '-',
+                      ),
+                      const Divider(height: 1, indent: 56),
+                      _DetailRow(
+                        icon: Icons.calendar_today,
+                        label: 'Tanggal',
+                        value: DateFormatter.formatFullDate(
+                          detailTransaction.transactionDate,
+                        ),
+                      ),
+                      const Divider(height: 1, indent: 56),
+                      _DetailRow(
+                        icon: Icons.notes,
+                        label: 'Keterangan',
+                        value: description ?? '-',
+                      ),
+                      if (hasExtraNotes) ...[
+                        const Divider(height: 1, indent: 56),
+                        _DetailRow(
+                          icon: Icons.sticky_note_2,
+                          label: 'Catatan',
+                          value: detailTransaction.notes ?? '-',
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 24),
-          ],
+              // Delete Button
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenHorizontal,
+                ),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Hapus Transaksi'),
+                  onPressed: () => _confirmDelete(context, ref),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colorScheme.error,
+                    side: BorderSide(color: colorScheme.error),
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+            ],
+          ),
         ),
       ),
     );
@@ -210,7 +231,7 @@ class TransactionDetailScreen extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Transaksi berhasil dihapus'),
-                backgroundColor: Colors.green,
+                backgroundColor: colorScheme.primary,
               ),
             );
             Navigator.of(context).pop();
@@ -218,7 +239,12 @@ class TransactionDetailScreen extends ConsumerWidget {
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+              SnackBar(
+                content: const Text(
+                  'Gagal menghapus transaksi. Silakan coba lagi.',
+                ),
+                backgroundColor: colorScheme.error,
+              ),
             );
           }
         }
@@ -244,11 +270,12 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(icon, size: 24, color: AppColors.primary),
+          Icon(icon, size: 24, color: colorScheme.primary),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -256,19 +283,16 @@ class _DetailRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.textSecondary,
+                    color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
-                  ),
+                  style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -155,9 +155,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text(AppStrings.cancel),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             child: const Text(AppStrings.logout),
           ),
         ],
@@ -197,43 +200,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.settingsTitle)),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildAccountSection(currentUserAsync),
-          const SizedBox(height: 16),
-          _buildPasswordSection(),
-          const SizedBox(height: 16),
-          _buildAppSection(
-            currentUserAsync: currentUserAsync,
-            cashbooksAsync: cashbooksAsync,
-            activeCashbook: activeCashbook,
-            selectedThemeMode: themeMode,
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenHorizontal,
+            AppSpacing.md,
+            AppSpacing.screenHorizontal,
+            AppSpacing.xl,
           ),
-          const SizedBox(height: 16),
-          _buildAboutSection(),
-          const SizedBox(height: 16),
-          _buildLogoutSection(),
-          const SizedBox(height: 24),
-        ],
+          children: [
+            _buildAccountSection(currentUserAsync),
+            const SizedBox(height: AppSpacing.md),
+            _buildPasswordSection(),
+            const SizedBox(height: AppSpacing.md),
+            _buildAppSection(
+              currentUserAsync: currentUserAsync,
+              cashbooksAsync: cashbooksAsync,
+              activeCashbook: activeCashbook,
+              selectedThemeMode: themeMode,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _buildAboutSection(),
+            const SizedBox(height: AppSpacing.md),
+            _buildLogoutSection(),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAccountSection(AsyncValue<UserEntity?> currentUserAsync) {
     return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: currentUserAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, __) => Column(
+          error: (_, _) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 AppStrings.accountSettings,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               const Text('Gagal memuat data akun'),
               const SizedBox(height: 8),
               TextButton(
@@ -256,16 +268,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     AppStrings.accountSettings,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
                   TextFormField(
                     controller: _displayNameController,
                     decoration: const InputDecoration(
                       labelText: AppStrings.displayName,
-                      border: OutlineInputBorder(),
                     ),
                     textCapitalization: TextCapitalization.words,
                     validator: Validators.validateName,
@@ -276,13 +287,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     readOnly: true,
                     decoration: const InputDecoration(
                       labelText: AppStrings.email,
-                      border: OutlineInputBorder(),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: FilledButton(
                       onPressed: _isSavingProfile
                           ? null
                           : () => _saveProfile(user),
@@ -306,6 +316,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildPasswordSection() {
     return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -313,17 +324,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 AppStrings.changePassword,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _newPasswordController,
                 obscureText: _obscureNewPassword,
                 decoration: InputDecoration(
                   labelText: 'Password Baru',
-                  border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     onPressed: () {
                       setState(
@@ -339,13 +349,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 validator: Validators.validatePassword,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirmPassword,
                 decoration: InputDecoration(
                   labelText: 'Konfirmasi Password Baru',
-                  border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     onPressed: () {
                       setState(
@@ -365,10 +374,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _newPasswordController.text,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: FilledButton(
                   onPressed: _isSavingPassword ? null : _savePassword,
                   child: _isSavingPassword
                       ? const SizedBox(
@@ -393,18 +402,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required ThemeMode selectedThemeMode,
   }) {
     return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               AppStrings.appSettings,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             const Text('Mode Tema'),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             SegmentedButton<ThemeMode>(
               segments: const [
                 ButtonSegment<ThemeMode>(
@@ -426,15 +436,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ref.read(appThemeModeProvider.notifier).setThemeMode(mode);
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             const Text('Buku Kas Default'),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             cashbooksAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: CircularProgressIndicator(),
               ),
-              error: (_, __) => Column(
+              error: (_, _) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Gagal memuat daftar buku kas'),
@@ -467,11 +477,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: _selectedDefaultCashbookId,
+                      initialValue: _selectedDefaultCashbookId,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                      ),
+                      decoration: const InputDecoration(),
                       items: cashbooks
                           .map(
                             (cashbook) => DropdownMenuItem<String>(
@@ -484,10 +492,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         setState(() => _selectedDefaultCashbookId = value);
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.sm),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
+                      child: FilledButton(
                         onPressed: _isSavingDefaultCashbook || !canSave
                             ? null
                             : () => _saveDefaultCashbook(
@@ -517,6 +525,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildAboutSection() {
     return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       child: ListTile(
         leading: const Icon(Icons.info_outline),
         title: const Text(AppStrings.about),
@@ -528,6 +537,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildLogoutSection() {
     return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
       child: ListTile(
         leading: const Icon(Icons.logout, color: AppColors.error),
         title: const Text(

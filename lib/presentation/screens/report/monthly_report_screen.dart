@@ -2,10 +2,12 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/constants.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/entities/entities.dart';
 import '../../providers/providers.dart';
+import '../../widgets/app_section_header.dart';
+import '../../widgets/money_metric.dart';
 
 class MonthlyReportScreen extends ConsumerWidget {
   const MonthlyReportScreen({super.key});
@@ -49,6 +51,11 @@ class MonthlyReportScreen extends ConsumerWidget {
         title: const Text('Laporan Keuangan'),
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: colorScheme.onSurface,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
         elevation: 0,
       ),
       body: const _MonthlyReportBody(),
@@ -68,28 +75,36 @@ class _MonthlyReportBody extends ConsumerWidget {
       return const Center(child: Text('Buku kas tidak ditemukan'));
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _MonthPicker(selectedMonth: selectedMonth),
-        const SizedBox(height: 16),
-        _SummarySection(
-          selectedMonth: selectedMonth,
-          cashbookId: activeCashbook.cashbookId,
+    return SafeArea(
+      top: false,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenHorizontal,
+          AppSpacing.sm,
+          AppSpacing.screenHorizontal,
+          AppSpacing.xl,
         ),
-        const SizedBox(height: 24),
-        _PieChartSection(
-          selectedMonth: selectedMonth,
-          cashbookId: activeCashbook.cashbookId,
-        ),
-        const SizedBox(height: 24),
-        _BarChartSection(
-          cashbookId: activeCashbook.cashbookId,
-          year: selectedMonth.year,
-          selectedMonth: selectedMonth.month,
-        ),
-        const SizedBox(height: 16),
-      ],
+        children: [
+          _MonthPicker(selectedMonth: selectedMonth),
+          const SizedBox(height: AppSpacing.lg),
+          _SummarySection(
+            selectedMonth: selectedMonth,
+            cashbookId: activeCashbook.cashbookId,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _PieChartSection(
+            selectedMonth: selectedMonth,
+            cashbookId: activeCashbook.cashbookId,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _BarChartSection(
+            cashbookId: activeCashbook.cashbookId,
+            year: selectedMonth.year,
+            selectedMonth: selectedMonth.month,
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
     );
   }
 }
@@ -109,17 +124,16 @@ class _MonthPicker extends ConsumerWidget {
         MonthlyReportScreen._monthNamesFull[selectedMonth.month - 1];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      height: AppComponentHeight.interactive,
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.controlBorder,
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
             icon: const Icon(Icons.chevron_left),
+            tooltip: 'Bulan sebelumnya',
             onPressed: () {
               final prev = DateTime(
                 selectedMonth.year,
@@ -128,19 +142,30 @@ class _MonthPicker extends ConsumerWidget {
               ref.read(reportMonthProvider.notifier).state = prev;
             },
           ),
-          GestureDetector(
-            onTap: () => _showMonthYearPicker(context, ref, selectedMonth),
-            child: Text(
-              '$monthName ${selectedMonth.year}',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
+          Expanded(
+            child: Semantics(
+              button: true,
+              label: 'Pilih bulan $monthName ${selectedMonth.year}',
+              child: TextButton(
+                onPressed: () =>
+                    _showMonthYearPicker(context, ref, selectedMonth),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, AppComponentHeight.interactive),
+                  padding: EdgeInsets.zero,
+                  foregroundColor: colorScheme.onSurface,
+                ),
+                child: Text(
+                  '$monthName ${selectedMonth.year}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
+            tooltip: 'Bulan berikutnya',
             onPressed: () {
               final next = DateTime(
                 selectedMonth.year,
@@ -204,17 +229,13 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
         children: [
           IconButton(
             icon: const Icon(Icons.chevron_left),
+            tooltip: 'Tahun sebelumnya',
             onPressed: () => setState(() => _selectedYear--),
           ),
-          Text(
-            '$_selectedYear',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-          ),
+          Text('$_selectedYear', style: Theme.of(context).textTheme.titleLarge),
           IconButton(
             icon: const Icon(Icons.chevron_right),
+            tooltip: 'Tahun berikutnya',
             onPressed: () => setState(() => _selectedYear++),
           ),
         ],
@@ -225,43 +246,34 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
           shrinkWrap: true,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 3,
-            childAspectRatio: 2,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
+            childAspectRatio: 1.4,
+            crossAxisSpacing: AppSpacing.xs,
+            mainAxisSpacing: AppSpacing.xs,
           ),
           itemCount: 12,
           itemBuilder: (_, i) {
             final isSelected = (i + 1) == _selectedMonth;
-            return GestureDetector(
-              onTap: () {
+            return TextButton(
+              onPressed: () {
                 setState(() => _selectedMonth = i + 1);
                 widget.onSelected(DateTime(_selectedYear, i + 1));
                 Navigator.of(context).pop();
               },
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isSelected ? colorScheme.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isSelected
-                        ? colorScheme.primary
-                        : colorScheme.outlineVariant,
-                  ),
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, AppComponentHeight.interactive),
+                padding: EdgeInsets.zero,
+                backgroundColor: isSelected
+                    ? colorScheme.primaryContainer
+                    : Colors.transparent,
+                foregroundColor: isSelected
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onSurface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: AppRadius.smallBorder,
                 ),
-                child: Text(
-                  MonthlyReportScreen._monthNames[i],
-                  style: TextStyle(
-                    color: isSelected
-                        ? colorScheme.onPrimary
-                        : colorScheme.onSurface,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    fontSize: 13,
-                  ),
-                ),
+                textStyle: Theme.of(context).textTheme.labelLarge,
               ),
+              child: Text(MonthlyReportScreen._monthNames[i]),
             );
           },
         ),
@@ -291,10 +303,13 @@ class _SummarySection extends ConsumerWidget {
       duration: const Duration(milliseconds: 180),
       child: summaryAsync.when(
         loading: () => const _SummaryLoadingState(key: ValueKey('loading')),
-        error: (e, _) => Padding(
+        error: (_, _) => Padding(
           key: const ValueKey('error'),
           padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text('Gagal memuat ringkasan: $e'),
+          child: Text(
+            'Gagal memuat ringkasan. Silakan coba lagi.',
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
+          ),
         ),
         data: (summary) {
           final income = summary['income'] ?? 0;
@@ -304,40 +319,9 @@ class _SummarySection extends ConsumerWidget {
             key: const ValueKey('data'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Ringkasan Bulan Ini',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _SummaryCard(
-                      label: 'Pemasukan',
-                      amount: income,
-                      color: colorScheme.primary,
-                      backgroundColor: colorScheme.surfaceContainerHigh,
-                      icon: Icons.arrow_downward,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _SummaryCard(
-                      label: 'Pengeluaran',
-                      amount: expense,
-                      color: colorScheme.secondary,
-                      backgroundColor: colorScheme.surfaceContainerHigh,
-                      icon: Icons.arrow_upward,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _NetCard(net: net),
+              const AppSectionHeader(title: 'Ringkasan Bulan Ini'),
+              const SizedBox(height: AppSpacing.xs),
+              _ReportSummarySurface(income: income, expense: expense, net: net),
             ],
           );
         },
@@ -355,131 +339,87 @@ class _SummaryLoadingState extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Ringkasan Bulan Ini',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface,
+        const AppSectionHeader(title: 'Ringkasan Bulan Ini'),
+        const SizedBox(height: AppSpacing.xs),
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: AppRadius.cardBorder,
+          ),
+          child: const Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _SummaryMetricSkeleton()),
+                  _SummaryVerticalSkeleton(),
+                  Expanded(child: _SummaryMetricSkeleton()),
+                ],
+              ),
+              SizedBox(height: AppSpacing.md),
+              _SummaryNetSkeleton(),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: const [
-            Expanded(child: _LoadingMetricCard()),
-            SizedBox(width: 8),
-            Expanded(child: _LoadingMetricCard()),
-          ],
-        ),
-        const SizedBox(height: 8),
-        const _LoadingNetCard(),
       ],
     );
   }
 }
 
-class _LoadingMetricCard extends StatelessWidget {
-  const _LoadingMetricCard();
+class _ReportSummarySurface extends StatelessWidget {
+  final int income;
+  final int expense;
+  final int net;
 
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      height: 84,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(width: 72, height: 10, color: colorScheme.outlineVariant),
-          const SizedBox(height: 12),
-          Container(width: 90, height: 18, color: colorScheme.outlineVariant),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoadingNetCard extends StatelessWidget {
-  const _LoadingNetCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      height: 52,
-      decoration: BoxDecoration(
-        color: colorScheme.outlineVariant.withValues(alpha: 0.24),
-        borderRadius: BorderRadius.circular(12),
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String label;
-  final int amount;
-  final Color color;
-  final Color backgroundColor;
-  final IconData icon;
-
-  const _SummaryCard({
-    required this.label,
-    required this.amount,
-    required this.color,
-    required this.backgroundColor,
-    required this.icon,
+  const _ReportSummarySurface({
+    required this.income,
+    required this.expense,
+    required this.net,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.cardBorder,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+              Expanded(
+                child: MoneyMetric(
+                  label: 'Pemasukan',
+                  value: CurrencyFormatter.format(income),
+                  type: MoneyMetricType.income,
+                  compact: true,
                 ),
-                child: Icon(icon, color: color, size: 16),
               ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
+              const _SummaryVerticalDivider(),
+              Expanded(
+                child: MoneyMetric(
+                  label: 'Pengeluaran',
+                  value: CurrencyFormatter.format(expense),
+                  type: MoneyMetricType.expense,
+                  compact: true,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            CurrencyFormatter.format(amount),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Divider(height: 1),
+          ),
+          MoneyMetric(
+            label: net >= 0 ? 'Surplus' : 'Defisit',
+            value: '${net >= 0 ? '+' : ''}${CurrencyFormatter.format(net)}',
+            color: net >= 0
+                ? colorScheme.incomeColor
+                : colorScheme.expenseColor,
+            compact: true,
           ),
         ],
       ),
@@ -487,50 +427,67 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _NetCard extends StatelessWidget {
-  final int net;
-
-  const _NetCard({required this.net});
+class _SummaryVerticalDivider extends StatelessWidget {
+  const _SummaryVerticalDivider();
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isPositive = net >= 0;
-    final background = isPositive
-        ? colorScheme.primaryContainer
-        : colorScheme.secondaryContainer;
-    final accent = isPositive ? colorScheme.primary : colorScheme.secondary;
-    final label = isPositive ? 'Surplus' : 'Defisit';
+    return SizedBox(
+      height: 40,
+      width: AppSpacing.md,
+      child: VerticalDivider(
+        thickness: AppBorder.subtleWidth,
+        color: Theme.of(context).colorScheme.outlineVariant,
+      ),
+    );
+  }
+}
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withValues(alpha: 0.35)),
+class _SummaryMetricSkeleton extends StatelessWidget {
+  const _SummaryMetricSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.outlineVariant;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(width: 64, height: 10, color: color),
+        const SizedBox(height: AppSpacing.xs),
+        Container(width: 104, height: 16, color: color),
+      ],
+    );
+  }
+}
+
+class _SummaryVerticalSkeleton extends StatelessWidget {
+  const _SummaryVerticalSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      width: AppSpacing.md,
+      child: VerticalDivider(
+        thickness: AppBorder.subtleWidth,
+        color: Theme.of(context).colorScheme.outlineVariant,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onPrimaryContainer,
-            ),
-          ),
-          Text(
-            '${isPositive ? '+' : ''}${CurrencyFormatter.format(net)}',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onPrimaryContainer,
-            ),
-          ),
-        ],
-      ),
+    );
+  }
+}
+
+class _SummaryNetSkeleton extends StatelessWidget {
+  const _SummaryNetSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.outlineVariant;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Container(width: 64, height: 10, color: color),
+        Container(width: 120, height: 16, color: color),
+      ],
     );
   }
 }
@@ -567,64 +524,33 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
     );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.cardBorder,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Distribusi Kategori',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              // Toggle income/expense
-              Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _TypeToggle(
-                      label: 'Keluar',
-                      isSelected: _activeType == TransactionType.expense,
-                      color: colorScheme.error,
-                      onTap: () =>
-                          setState(() => _activeType = TransactionType.expense),
-                    ),
-                    _TypeToggle(
-                      label: 'Masuk',
-                      isSelected: _activeType == TransactionType.income,
-                      color: colorScheme.primary,
-                      onTap: () =>
-                          setState(() => _activeType = TransactionType.income),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const AppSectionHeader(title: 'Distribusi Kategori'),
+          const SizedBox(height: AppSpacing.xs),
+          _ReportTypeSegmentedControl(
+            activeType: _activeType,
+            onChanged: (type) => setState(() => _activeType = type),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: breakdownAsync.when(
               loading: () =>
                   const _PieChartLoadingState(key: ValueKey('loading')),
-              error: (e, _) => Padding(
+              error: (_, _) => Padding(
                 key: const ValueKey('error'),
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text('Gagal memuat data: $e'),
+                child: Text(
+                  'Gagal memuat data. Silakan coba lagi.',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
               ),
               data: (items) {
                 if (items.isEmpty) {
@@ -640,24 +566,25 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
                   );
                 }
 
-                final total = items.fold<int>(
+                final displayItems = _prepareCategoryItems(items);
+                final total = displayItems.fold<int>(
                   0,
                   (sum, item) => sum + (item['amount'] as int),
                 );
-                final sections = _buildPieSections(items, total);
+                final sections = _buildPieSections(displayItems, total);
 
                 return Column(
                   key: const ValueKey('data'),
                   children: [
                     SizedBox(
-                      height: 200,
+                      height: 168,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
                           PieChart(
                             PieChartData(
                               sections: sections,
-                              centerSpaceRadius: 52,
+                              centerSpaceRadius: 42,
                               sectionsSpace: 2,
                               pieTouchData: PieTouchData(
                                 touchCallback: (event, response) {
@@ -700,7 +627,7 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _CategoryLegend(items: items, total: total),
+                    _CategoryLegend(items: displayItems, total: total),
                   ],
                 );
               },
@@ -709,6 +636,32 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
         ],
       ),
     );
+  }
+
+  List<Map<String, dynamic>> _prepareCategoryItems(
+    List<Map<String, dynamic>> items,
+  ) {
+    if (items.length <= 5) {
+      return items;
+    }
+
+    final sortedItems = items.map(Map<String, dynamic>.from).toList()
+      ..sort((a, b) => (b['amount'] as int).compareTo(a['amount'] as int));
+
+    final visibleItems = sortedItems.take(5).toList();
+    final remainingAmount = sortedItems
+        .skip(5)
+        .fold<int>(0, (sum, item) => sum + (item['amount'] as int));
+
+    if (remainingAmount > 0) {
+      visibleItems.add({
+        'categoryName': 'Lainnya',
+        'amount': remainingAmount,
+        'color': '#5B6E72',
+      });
+    }
+
+    return visibleItems;
   }
 
   List<PieChartSectionData> _buildPieSections(
@@ -725,7 +678,7 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
       return PieChartSectionData(
         value: amount.toDouble(),
         color: color,
-        radius: isTouched ? 68 : 56,
+        radius: isTouched ? 54 : 46,
         title: isTouched ? '${percentage.toStringAsFixed(1)}%' : '',
         titleStyle: const TextStyle(
           fontSize: 12,
@@ -746,38 +699,88 @@ class _PieChartSectionState extends ConsumerState<_PieChartSection> {
   }
 }
 
-class _TypeToggle extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final Color color;
-  final VoidCallback onTap;
+class _ReportTypeSegmentedControl extends StatelessWidget {
+  final TransactionType activeType;
+  final ValueChanged<TransactionType> onChanged;
 
-  const _TypeToggle({
-    required this.label,
-    required this.isSelected,
-    required this.color,
-    required this.onTap,
+  const _ReportTypeSegmentedControl({
+    required this.activeType,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? color : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isSelected
-                ? colorScheme.onPrimary
-                : colorScheme.onSurfaceVariant,
+    return Container(
+      height: AppComponentHeight.interactive + AppSpacing.xxs,
+      padding: const EdgeInsets.all(AppSpacing.xxs),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: AppRadius.controlBorder,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildOption(
+              context,
+              type: TransactionType.expense,
+              label: 'Pengeluaran',
+              selectedColor: colorScheme.expenseContainer,
+              selectedForeground: colorScheme.onExpenseColor,
+            ),
+          ),
+          Expanded(
+            child: _buildOption(
+              context,
+              type: TransactionType.income,
+              label: 'Pemasukan',
+              selectedColor: colorScheme.incomeContainer,
+              selectedForeground: colorScheme.onIncomeColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOption(
+    BuildContext context, {
+    required TransactionType type,
+    required String label,
+    required Color selectedColor,
+    required Color selectedForeground,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isSelected = activeType == type;
+
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onChanged(type),
+          borderRadius: AppRadius.smallBorder,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: isSelected ? selectedColor : Colors.transparent,
+              borderRadius: AppRadius.smallBorder,
+            ),
+            child: Center(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: isSelected
+                      ? selectedForeground
+                      : colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -793,47 +796,61 @@ class _CategoryLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayItems = items.take(6).toList();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
-      children: displayItems.map((item) {
+      children: items.map((item) {
         final amount = item['amount'] as int;
         final percentage = total > 0 ? (amount / total * 100) : 0.0;
         final color = _colorFromHex(item['color'] as String? ?? '#9E9E9E');
         final categoryName = item['categoryName'] as String? ?? 'Lainnya';
 
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: Row(
             children: [
               Container(
-                width: 12,
-                height: 12,
+                width: 10,
+                height: 10,
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   categoryName,
-                  style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                '${percentage.toStringAsFixed(1)}%',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurfaceVariant,
+              const SizedBox(width: AppSpacing.sm),
+              SizedBox(
+                width: 52,
+                child: Text(
+                  '${percentage.toStringAsFixed(1)}%',
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                CurrencyFormatter.format(amount),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
+              const SizedBox(width: AppSpacing.sm),
+              SizedBox(
+                width: 108,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      CurrencyFormatter.format(amount),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -861,17 +878,12 @@ class _PieChartLoadingState extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Column(
       children: [
-        Container(
-          height: 200,
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
+        SizedBox(
+          height: 168,
           child: Center(
             child: Container(
-              width: 56,
-              height: 56,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 color: colorScheme.outlineVariant.withValues(alpha: 0.35),
                 shape: BoxShape.circle,
@@ -879,17 +891,50 @@ class _PieChartLoadingState extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         ...List.generate(
           3,
           (index) => Padding(
-            padding: EdgeInsets.only(bottom: index == 2 ? 0 : 8),
-            child: Container(
-              height: 14,
-              decoration: BoxDecoration(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(999),
-              ),
+            padding: EdgeInsets.only(bottom: index == 2 ? 0 : AppSpacing.xs),
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Container(
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                      borderRadius: AppRadius.smallBorder,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Container(
+                  width: 52,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                    borderRadius: AppRadius.smallBorder,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Container(
+                  width: 108,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                    borderRadius: AppRadius.smallBorder,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -920,53 +965,48 @@ class _BarChartSection extends ConsumerWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.cardBorder,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Tren $year',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
+          AppSectionHeader(title: 'Tren $year'),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              _LegendDot(color: colorScheme.primary, label: 'Pemasukan'),
-              const SizedBox(width: 16),
-              _LegendDot(color: colorScheme.error, label: 'Pengeluaran'),
+              _LegendDot(color: colorScheme.incomeColor, label: 'Pemasukan'),
+              const SizedBox(width: AppSpacing.md),
+              _LegendDot(color: colorScheme.expenseColor, label: 'Pengeluaran'),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: trendAsync.when(
               loading: () =>
                   const _BarChartLoadingState(key: ValueKey('loading')),
-              error: (e, _) => Padding(
+              error: (_, _) => Padding(
                 key: const ValueKey('error'),
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text('Gagal memuat data: $e'),
+                child: Text(
+                  'Gagal memuat data. Silakan coba lagi.',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
               ),
               data: (months) {
                 if (months.every(
                   (m) => m['income'] == 0 && m['expense'] == 0,
                 )) {
-                  return const SizedBox(
+                  return SizedBox(
                     key: ValueKey('empty'),
                     height: 100,
                     child: Center(
                       child: Text(
                         'Belum ada transaksi tahun ini',
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
                     ),
                   );
@@ -1089,17 +1129,23 @@ class _BarChartSection extends ConsumerWidget {
         barRods: [
           BarChartRodData(
             toY: income,
-            color: colorScheme.primary.withValues(
+            color: colorScheme.incomeColor.withValues(
               alpha: isSelected ? 1.0 : 0.6,
             ),
             width: 6,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.small),
+            ),
           ),
           BarChartRodData(
             toY: expense,
-            color: colorScheme.error.withValues(alpha: isSelected ? 1.0 : 0.6),
+            color: colorScheme.expenseColor.withValues(
+              alpha: isSelected ? 1.0 : 0.6,
+            ),
             width: 6,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppRadius.small),
+            ),
           ),
         ],
         barsSpace: 3,
@@ -1114,26 +1160,23 @@ class _BarChartLoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
+    return SizedBox(
       height: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(
-          12,
-          (index) => Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Container(
-                height: (index % 4 + 2) * 18,
-                decoration: BoxDecoration(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(
+            12,
+            (index) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Container(
+                  height: (index % 4 + 2) * 18,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+                    borderRadius: AppRadius.smallBorder,
+                  ),
                 ),
               ),
             ),

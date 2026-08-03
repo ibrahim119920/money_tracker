@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
+import '../../../core/constants/constants.dart';
 import '../../../core/utils/validators.dart';
 import '../../providers/providers.dart';
 
@@ -85,7 +83,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString();
-        print('Register error: $errorMsg');
+        debugPrint('Register error: $errorMsg');
         final lowerError = errorMsg.toLowerCase();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -108,19 +106,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenHorizontal,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── HEADER ────────────────────────────────────────────
                   Padding(
-                    padding: const EdgeInsets.only(top: 24, left: 0),
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
                     child: Row(
                       children: [
                         IconButton(
@@ -133,34 +133,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  const Text(
+                  const SizedBox(height: AppSpacing.xl),
+                  Text(
                     'Buat Akun Baru',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
                     'Mulai catat keuanganmu hari ini',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: AppSpacing.xxl),
 
                   // ── STEP INDICATOR ────────────────────────────────────
                   const _StepIndicator(),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: AppSpacing.lg),
 
                   // ── FORM FIELDS ───────────────────────────────────────
 
                   // Nama Lengkap
                   _FieldLabel('Nama Lengkap'),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpacing.xxs),
                   TextFormField(
                     controller: _nameCtrl,
                     textCapitalization: TextCapitalization.words,
@@ -174,11 +167,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     validator: Validators.validateName,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
 
                   // Email
                   _FieldLabel('Email'),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpacing.xxs),
                   TextFormField(
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
@@ -192,11 +185,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     validator: Validators.validateEmail,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
 
                   // Kata Sandi
                   _FieldLabel('Kata Sandi'),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpacing.xxs),
                   TextFormField(
                     controller: _passwordCtrl,
                     obscureText: _obscurePassword,
@@ -223,11 +216,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     validator: Validators.validatePassword,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
 
                   // Ulangi Kata Sandi
                   _FieldLabel('Ulangi Kata Sandi'),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpacing.xxs),
                   TextFormField(
                     controller: _confirmPasswordCtrl,
                     obscureText: _obscureConfirmPassword,
@@ -259,7 +252,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           _passwordCtrl.text,
                         ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
 
                   // Checkbox Terms
                   Row(
@@ -269,73 +262,46 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         value: _agreeTerms,
                         onChanged: (v) =>
                             setState(() => _agreeTerms = v ?? false),
-                        activeColor: AppColors.primary,
+                        activeColor: Theme.of(context).colorScheme.primary,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         visualDensity: VisualDensity.compact,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: AppSpacing.xxs),
                       Expanded(
-                        child: Text.rich(
-                          TextSpan(
-                            text: 'Saya menyetujui ',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: 'Syarat & Ketentuan',
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  decoration: TextDecoration.underline,
-                                ),
-                                recognizer: TapGestureRecognizer()
-                                  ..onTap = () {},
-                              ),
-                            ],
+                        child: const Text(
+                          'Saya menyetujui syarat dan ketentuan penggunaan aplikasi.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpacing.lg),
 
                   // Tombol Daftar
                   SizedBox(
                     width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
+                    height: AppComponentHeight.interactive,
+                    child: FilledButton(
                       onPressed: _isLoading ? null : _register,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: AppColors.primary.withOpacity(
-                          0.6,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
                       child: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             )
                           : const Text(
                               'Buat Akun',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: AppSpacing.xl),
 
                   // Footer
                   Row(
@@ -362,7 +328,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpacing.lg),
                 ],
               ),
             ),
@@ -377,32 +343,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     Widget? suffixIcon,
     String? helperText,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: colorScheme.surfaceContainerLow,
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       helperText: helperText,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: AppSpacing.controlPadding,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.outline),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.outline),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.outline),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.outlineVariant),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.primary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.error),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.error),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.error, width: 2),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.error, width: 2),
       ),
     );
   }
@@ -414,14 +381,7 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
-      ),
-    );
+    return Text(label, style: Theme.of(context).textTheme.labelLarge);
   }
 }
 
@@ -430,6 +390,7 @@ class _StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         _StepItem(
@@ -440,11 +401,13 @@ class _StepIndicator extends StatelessWidget {
         Expanded(
           child: Container(
             height: 1,
-            color: AppColors.primary.withOpacity(0.4),
+            color: colorScheme.primary.withValues(alpha: 0.4),
           ),
         ),
         _StepItem(icon: Icons.lock_outline, label: 'Akun', isActive: true),
-        Expanded(child: Container(height: 1, color: AppColors.outline)),
+        Expanded(
+          child: Container(height: 1, color: colorScheme.outlineVariant),
+        ),
         _StepItem(icon: Icons.check_circle, label: 'Selesai', isActive: false),
       ],
     );
@@ -464,7 +427,8 @@ class _StepItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? AppColors.primary : AppColors.textSecondary;
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = isActive ? colorScheme.primary : colorScheme.onSurfaceVariant;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

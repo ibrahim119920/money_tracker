@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: July 5, 2026 (Sprint 4.13 - Dual Palette Refresh)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 3, 2026 (Sprint 4.26 - Icon Foundation and Dashboard)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -11,8 +11,11 @@
 |---|---|
 | `lib/main.dart` | `MoneyTrackerApp`, `_AppInitErrorWidget`, init: `await initializeDateFormatting('id_ID', null)` ⚠️ diperlukan sebelum `runApp()` |
 | `lib/app/router.dart` | `AppRoutes` (konstanta path), `goRouterProvider`, `_RouterNotifier`, `_SplashScreen` |
-| `lib/app/theme.dart` | `AppTheme.getLightTheme()`, `AppTheme.getDarkTheme()` (Material 3 `ColorScheme` di-map ke palette light/dark baru) |
-| `lib/core/constants/app_colors.dart` | `AppColors` (dual-mode palette: light dark teal/lavender/lime + dark deep teal/lavender/lime, mint/peach neutrals, income, expense, transfer, success, error, background, surface, categoryColors) |
+| `lib/app/theme.dart` | `AppTheme.getLightTheme()`, `AppTheme.getDarkTheme()` (Material 3 `ColorScheme`, component themes, typography, surface hierarchy, dan system bars) |
+| `lib/core/constants/app_colors.dart` | `AppColors` (palette warm-neutral, semantic compatibility, deterministic wallet/chart palettes, dan extension `MoneyTrackerColorScheme`) |
+| `lib/core/constants/app_auth_config.dart` | `AppAuthConfig.googleRedirectUri` untuk callback OAuth Android |
+| `lib/core/constants/app_design_tokens.dart` | `AppSpacing`, restrained `AppRadius` scale, `AppBorder`, `AppElevation`, `AppIconSize`, `AppComponentHeight`, `AppMotion` |
+| `lib/core/constants/app_semantic_colors.dart` | `MoneyTrackerSemanticColors` `ThemeExtension` untuk pasangan semantic light/dark |
 | `lib/core/constants/app_strings.dart` | `AppStrings` — semua string UI Bahasa Indonesia |
 | `lib/core/constants/supabase_keys.dart` | `SupabaseKeys.supabaseUrl`, `SupabaseKeys.supabaseAnonKey` |
 | `lib/core/utils/currency_formatter.dart` | `CurrencyFormatter.format()`, `.parse()`, `.formatCompact()` |
@@ -43,6 +46,13 @@
 ---
 
 ## FILE MAP — Presentation Layer
+
+### Icon Foundation (Phase 2)
+| File | Class / Konten |
+|---|---|
+| lib/presentation/icons/app_icons.dart | AppIcons — matching outlined/rounded navigation pairs, Dashboard actions, transaction and WalletType mappings, normalized category aliases, and deterministic fallbacks; stored keys remain unchanged |
+| test/app_icons_test.dart | Focused mapping, fallback, normalization, determinism, and 18/24/26/30/36 dp token coverage |
+| test/dashboard_icon_system_test.dart | Dashboard light/dark golden, responsive widths 360/393/412, text scale 1.0/1.3, semantics, and direct transaction-action coverage |
 
 ### Providers
 | File | Provider | Type | Catatan |
@@ -80,22 +90,24 @@
 | `lib/presentation/screens/auth/register_screen.dart` | `RegisterScreen`, `_FieldLabel`, `_StepIndicator`, `_StepItem` | ✅ Lengkap — 4 fields, step indicator, terms checkbox, **auto-create cashbook default saat register** |
 | `lib/presentation/screens/cashbook/cashbook_list_screen.dart` | `CashbookListScreen`, `CashbookListItem` | ✅ |
 | `lib/presentation/screens/cashbook/cashbook_form_screen.dart` | `CashbookFormScreen` | ✅ |
-| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — section loading now uses lighter transitions |
+| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — shape rework: continuous hero, shared summary surface, filled wallet carousel |
 | `lib/presentation/screens/splash/loading_screen.dart` | `LoadingScreen` — pre-warm providers sebelum masuk Dashboard | ✅ — readiness check moved out of build |
 | `lib/presentation/screens/wallet/wallet_list_screen.dart` | `WalletListScreen`, `WalletListItem` | ✅ |
 | `lib/presentation/screens/wallet/wallet_form_screen.dart` | `WalletFormScreen` | ✅ |
 | `lib/presentation/screens/wallet/wallet_detail_screen.dart` | `WalletDetailScreen`, `_walletMonthlySummaryProvider`, `_walletTransactionsProvider` | ✅ — loading summary/transactions use lightweight placeholders |
-| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeChip`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — grouped rows derived by provider; loading uses placeholders |
+| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat transaction rows with grouped date hierarchy; loading uses placeholders |
 | `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField`, `_CategoryPickerSheet` | ✅ |
 | `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ |
 | `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen`, `_WalletDropdownItem`, `_ThousandSeparatorFormatter` | ✅ |
-| `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_SummaryCard`, `_NetCard`, `_PieChartSection`, `_TypeToggle`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ — loading sections use AnimatedSwitcher + placeholders |
+| `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_ReportSummarySurface`, `_PieChartSection`, `_ReportTypeSegmentedControl`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ — tonal grouped surfaces, compact navigation, semantic chart controls |
 | `lib/presentation/screens/settings/settings_screen.dart` | `SettingsScreen` | ✅ P0 — profile, password, theme mode, default cashbook, about, logout |
 
 ### Widgets
 | File | Class | Catatan |
 |---|---|---|
-| `lib/presentation/widgets/transaction_tile.dart` | `TransactionTile` (props: transaction, onTap, showWalletName) | **💚 Left accent bar by type** — `Container(width:4, color:typeColor)` sebagai child pertama di Row + `clipBehavior: Clip.antiAlias` + `IntrinsicHeight`. ⚠️ JANGAN gunakan `Border()` dengan sisi berbeda lebar + `borderRadius` → menyebabkan clip bug (konten hilang) |
+| `lib/presentation/widgets/transaction_tile.dart` | `TransactionTile` (props: transaction, onTap, showWalletName, showDivider, dense) | Flat Android list row; semantic color dibatasi pada icon container dan amount, dengan divider opsional serta overflow nominal yang aman |
+| `lib/presentation/widgets/app_section_header.dart` | `AppSectionHeader` | Header section ringkas dengan action opsional atau trailing widget; tanpa business logic |
+| `lib/presentation/widgets/money_metric.dart` | `MoneyMetric`, `MoneyMetricType` | Metric uang dengan nilai yang sudah diformat, semantic color, layout compact/regular, dan overflow aman |
 
 ---
 
@@ -415,6 +427,55 @@ Future<void> _createTransaction() async {
 - [x] Perbarui [lib/app/theme.dart](lib/app/theme.dart) supaya `ColorScheme` dark memakai container/error baru dari palette dan tetap menjaga light mode.
 - [x] Jadikan [lib/presentation/screens/splash/loading_screen.dart](lib/presentation/screens/splash/loading_screen.dart) adaptif terhadap mode terang dan gelap agar splash tidak menahan warna dark di light mode.
 
+### ✅ **Sprint 4.14 — Android UI Audit & Documentation DONE (August 1, 2026)**
+**Items:**
+- [x] Tambahkan [docs/ui-analysis-android.md](docs/ui-analysis-android.md) yang mendokumentasikan audit UI Android per layar, dark mode, kontras, edge-to-edge, responsiveness, aksesibilitas, navigasi, branding, dan izin Android.
+- [x] Tambahkan laporan UI Android ke indeks dokumentasi di `AGENTS.md`.
+- [x] Verifikasi statis dengan `dart analyze`: tidak ada error kompilasi yang dilaporkan; masih terdapat 48 warning/info yang perlu ditindaklanjuti.
+- [x] Catat bahwa aplikasi saat ini hanya membutuhkan `android.permission.INTERNET`; tidak ada izin runtime tambahan untuk fitur yang tersedia.
+
+### ✅ **Sprint 4.16 — Android UI Validation DONE (August 1, 2026)**
+**Items:**
+- [x] Flutter 3.38.7 / Dart 3.10.7 dan ADB 35.0.2 tervalidasi; perangkat `23122PCD1G` terhubung pada Android 16/API 36, 1220 × 2712, density 480.
+- [x] `flutter build apk --debug --no-pub` berhasil; APK diinstal dengan `adb install -r` tanpa menghapus data aplikasi.
+- [x] Verifikasi light/dark portrait: dashboard, transaksi, detail transaksi, report, settings, transfer, dan form pengeluaran; keyboard numerik juga diuji.
+- [x] Screenshot dan UI Automator semantics disimpan sementara di folder temp host, tidak masuk repository.
+- [x] Logcat 2.000 baris terakhir tidak menunjukkan crash, `FATAL EXCEPTION`, atau ANR; proses aplikasi tetap hidup.
+- [x] Permission paket terpasang hanya `android.permission.INTERNET`; tidak ada runtime permission yang perlu diberikan pengguna.
+- [x] `flutter test --no-pub` lulus; `dart analyze` tidak menemukan error kompilasi tetapi masih melaporkan 50 warning/info.
+- [ ] Matrix landscape, gesture navigation, font scale besar, dynamic color, dan responsive filter masih backlog.
+
+### ✅ **Sprint 4.17 — UI Foundation DONE (August 1, 2026)**
+**Items:**
+- [x] Tambahkan design tokens const untuk spacing, radius, border, elevation, icon, component height, dan motion.
+- [x] Refactor palette dan semantic color light/dark tanpa menghapus nama constant lama; lime tidak lagi menjadi primary dark.
+- [x] Refactor Material 3 `ThemeData` terpusat untuk surface, navigation, card, form, button, FAB, segmented control, sheet, dialog, snackbar, dan list tile.
+- [x] Tambahkan `AppSectionHeader` dan `MoneyMetric` sebagai reusable presentation widgets tanpa business logic.
+- [x] Provider, repository, entity, model, query, route, dan kontrak `state.extra` tidak diubah.
+- [x] `flutter analyze` selesai tanpa error kompilasi baru; 50 issue lint/info lama masih tercatat.
+- [ ] Refactor screen Dashboard, Transaction History, Monthly Report, wallet, form, transfer, settings, dan auth ditunda ke fase berikutnya.
+
+### ✅ **Sprint 4.18 — Transaction History Filter Fix (August 1, 2026)**
+**Items:**
+- [x] Ganti gesture custom pada filter tipe dengan `ChoiceChip` Material agar target tap dan state selected konsisten.
+- [x] Ganti pemilih bulan pada grid dengan `TextButton` Material agar pemilihan bulan memiliki semantics dan callback tombol yang jelas.
+- [x] Susun filter tipe dengan `Wrap` dan tempatkan tombol bulan pada baris penuh terpisah agar tidak terklip pada lebar 360–412 dp.
+- [x] Jadikan `transactionFilterProvider` sebagai sumber state filter yang ditampilkan dan pertahankan seluruh batas tanggal/category/wallet saat tipe berubah.
+- [x] Invalidate query transaksi setelah perubahan bulan atau tipe tanpa mengubah provider, repository, entity, query, atau database.
+- [x] `flutter test --no-pub` lulus; full `flutter analyze` masih mencatat 50 issue lama.
+- [ ] Verifikasi tap langsung di Android tertunda karena Android SDK dan perangkat tidak terdeteksi pada environment saat ini.
+
+### ✅ **Sprint 4.15 — UI P0 Implementation DONE (August 1, 2026)**
+**Items:**
+- [x] Tambahkan semantic foreground colors dan perbaiki light/dark `ColorScheme` di [app_colors.dart](lib/core/constants/app_colors.dart) dan [theme.dart](lib/app/theme.dart).
+- [x] Aktifkan edge-to-edge Android secara terkontrol, konfigurasi system bar, dan tambahkan `SafeArea`/inset protection pada layar utama serta form.
+- [x] Perbaiki kontras dark mode pada laporan, daftar/detail transaksi, wallet detail, transfer, dan reusable `TransactionTile`.
+- [x] Perbaiki gradient/foreground wallet detail, transfer button, transaction form button, filter/toggle target sentuh, serta date picker locale Indonesia.
+- [x] Hilangkan dead CTA prioritas: lupa password kini mengirim email reset melalui repository, Google Sign-In ditandai belum tersedia, terms tidak lagi memiliki tap handler kosong, dan “Lihat Semua” membuka daftar transaksi.
+- [x] Perluas auth guard ke seluruh route data yang membutuhkan session.
+- [x] `dart analyze` tidak menemukan error kompilasi; masih terdapat 50 warning/info lint/deprecation. Smoke test `flutter test --no-pub` kemudian lulus pada validasi langsung.
+- [x] Uji visual langsung di perangkat Android diselesaikan pada Sprint 4.16.
+
 ### ✅ **Sprint 4.5 — Transaction Detail Hydration Fix DONE (April 8, 2026)**
 **Items:**
 - [x] Perbaiki parser `TransactionModel.fromJson()` agar membaca hasil join nested Supabase (`wallets`, `categories`) di `lib/data/models/models.dart`
@@ -580,4 +641,82 @@ Future<void> _createTransaction() async {
 **Items:**
 - [x] Fix bug: Wallet balance did not update when a transaction is soft-deleted.
 - [x] Modified deleteTransaction in lib/data/repositories/cashbook_wallet_repository.dart to manually adjust current_balance on the source wallet.
+
+### Sprint 4.19 - Dashboard Shape Rework DONE (August 1, 2026)
+**Items:**
+- [x] Terapkan shape scale terpusat untuk small/control/card/prominent radius, tanpa menghapus alias radius lama.
+- [x] Refactor Dashboard menjadi hero saldo kontinu tanpa border, satu surface tonal untuk ringkasan bulanan, dan wallet card filled tanpa outline.
+- [x] Buat wallet carousel responsif dengan preview yang disengaja, ellipsis aman untuk nama panjang, dan ruang cukup pada text scale 1.3.
+- [x] Gunakan Material 3 `NavigationBar` serta pertahankan extended FAB, provider, route, loading/error state, dan tutorial behavior.
+- [x] Uji widget sementara lulus untuk light/dark, lebar 360/393/412 dp, text scale 1.0/1.3, nilai Rupiah besar, nama wallet panjang, loading, empty, dan error state.
+- [x] `dart format`, `flutter test --no-pub`, dan full `flutter analyze` dijalankan; analyzer tetap melaporkan 50 issue lama (49 info, 1 warning), tanpa error baru.
+- [ ] Screenshot Android belum tersedia karena environment saat validasi hanya mendeteksi Windows/Chrome/Edge dan tidak memiliki AVD.
+
+### Sprint 4.20 - Transaction History Shape Rework DONE (August 1, 2026)
+**Items:**
+- [x] Ganti tiga filter outline menjadi satu segmented control tonal dengan selected state semantic dan target sentuh 48 dp.
+- [x] Ganti month selector besar ber-outline menjadi toolbar ringkas dengan tombol bulan sebelumnya/berikutnya dan label yang tetap membuka picker.
+- [x] Satukan summary pemasukan, pengeluaran, dan selisih dalam satu surface tonal tanpa nested card.
+- [x] Ubah date header menjadi typography sederhana dengan divider halus; transaction rows kini flat, compact, dan amount rata kanan.
+- [x] Refactor `TransactionTile` dengan opsi focused `dense` dan `showDivider`; provider grouping, filter state, invalidation, formatter, dan route extra tetap dipertahankan.
+- [x] Loading, empty, error state, long metadata, nominal besar, light/dark, 360/393/412 dp, dan text scale 1.0/1.3 divalidasi melalui widget test sementara.
+- [ ] Screenshot Android belum tersedia karena environment validasi tidak mendeteksi device atau AVD.
+
+### Sprint 4.21 - Monthly Report Shape Rework DONE (August 1, 2026)
+**Items:**
+- [x] Ganti month selector ber-outline menjadi toolbar tonal ringkas dengan target sentuh Android yang tetap memadai.
+- [x] Satukan pemasukan, pengeluaran, dan surplus/defisit dalam satu surface tonal menggunakan `MoneyMetric`.
+- [x] Ganti toggle kategori menjadi segmented control terisi dengan semantic color income/expense.
+- [x] Kurangi dominasi donut chart, rapikan legend, dan gabungkan kategori kecil menjadi "Lainnya" hanya pada presentation layer.
+- [x] Hilangkan nested card dan outline dekoratif dari loading chart serta trend chart; provider, formatter, dan data integer tetap dipertahankan.
+- [x] `dart format`, target `dart analyze`, full `flutter analyze`, dan `flutter test --no-pub` dijalankan; tidak ada error atau warning baru dari perubahan Phase 4.
+- [ ] Screenshot Android belum tersedia karena environment validasi tidak mendeteksi device atau AVD.
+
+### Sprint 4.22 - Remaining UI Shape Standardization DONE (August 1, 2026)
+**Items:**
+- [x] Standardisasi wallet dan cashbook list/form: object memakai filled surface, nama dan nominal panjang aman, serta aksi utama memakai Material 3 `FilledButton`.
+- [x] Refactor wallet detail dan transaction detail menjadi hero flat tanpa gradient, summary/grouped rows memakai surface tonal, dan detail transaksi mempertahankan aksi destruktif outlined.
+- [x] Refactor transaction form dan transfer form: amount/header semantic, field selector tonal, bottom sheet kategori tanpa outline dekoratif, serta riwayat transfer dikelompokkan dalam satu surface.
+- [x] Standardisasi settings dan auth screens: section surfaces konsisten, button/input theme terpusat, mode tema dan SharedPreferences, provider, route, serta alur auth tetap dipertahankan.
+- [x] `dart format`, `flutter analyze`, `flutter test --no-pub`, dan `flutter build apk --debug` dijalankan; analyzer menyisakan 16 info lama tanpa error atau warning.
+- [x] APK debug berhasil dipasang ke perangkat Android `23122PCD1G`; screenshot landing tersedia sebagai pemeriksaan visual dasar.
+
+### Sprint 4.23 - Google OAuth Login DONE (August 1, 2026)
+**Items:**
+- [x] Aktifkan tombol `Lanjutkan dengan Google` pada `LoginScreen` melalui `supabase_flutter` `OAuthProvider.google`.
+- [x] Tambahkan redirect URI `io.supabase.moneytracker://login-callback/` pada konfigurasi aplikasi dan intent filter Android.
+- [x] Pertahankan `authStateProvider`, GoRouter redirect, provider lain, repository, entity, query Supabase, dan alur login email/password.
+- [x] `dart format`, `flutter analyze`, `flutter test --no-pub`, dan `flutter build apk --debug` dijalankan; analyzer menyisakan 16 info lama tanpa error atau warning baru.
+- [ ] Aktivasi end-to-end masih memerlukan konfigurasi Google OAuth Client dan provider Google di Supabase Dashboard.
+
+### Sprint 4.24 - Color Foundation Rework DONE (August 1, 2026)
+**Items:**
+- [x] Terapkan ColorScheme light/dark warm-neutral dengan deep teal brand, muted coral tertiary, independent secondary, dan charcoal dark surfaces.
+- [x] Tambahkan `MoneyTrackerSemanticColors` sebagai ThemeExtension untuk income, expense, transfer, warning, success, dan neutral information.
+- [x] Tambahkan deterministic wallet palette dengan foreground pair serta deterministic categorical chart palette.
+- [x] Pertahankan constant lama dan `MoneyTrackerColorScheme` compatibility getter; tidak ada provider, route, repository, entity, query, atau business behavior yang diubah.
+- [x] Perbarui relevant Material 3 component themes untuk surface, NavigationBar, buttons, segmented control, text selection, dan checkbox.
+- [x] `dart format`, `flutter analyze`, `flutter test --no-pub`, dan `flutter build apk --debug` dijalankan; analyzer menyisakan 16 info lama tanpa error atau warning baru.
+- [x] Dashboard telah dimigrasikan pada Sprint 4.25; Transaction History dan Monthly Report tetap menunggu review untuk fase berikutnya.
+
+### Sprint 4.25 - Dashboard Color Migration DONE (August 1, 2026)
+**Items:**
+- [x] Gunakan warm-neutral `surface` untuk halaman Dashboard dan `surfaceContainerLow` untuk app bar agar tidak menyatu dengan balance hero.
+- [x] Pertahankan balance hero `primaryContainer`, lalu gunakan surface netral untuk monthly summary dengan nilai pemasukan/pengeluaran dari semantic colors.
+- [x] Gunakan semantic income, expense, dan transfer colors pada action sheet tanpa mengubah route atau `state.extra`.
+- [x] Terapkan curated wallet palette deterministik berdasarkan tipe wallet dengan foreground pair yang sudah ditentukan untuk light/dark mode.
+- [x] Migrasikan avatar, cashbook switcher, tutorial, dan step indicator ke ColorScheme tanpa mengubah provider, loading state, tutorial behavior, atau navigation.
+- [x] `dart format`, `flutter analyze`, `flutter test --no-pub`, dan `flutter build apk --debug` dijalankan; analyzer menyisakan 16 info lama tanpa error atau warning baru.
+- [x] APK debug berhasil dipasang ke perangkat Android `9cfc535d`; screenshot dicoba setelah wake/unlock, tetapi aplikasi tetap pada splash/loading karena perangkat tidak terhubung jaringan dan sesi Dashboard tidak tersedia.
+- [ ] Transaction History dan Monthly Report belum dimigrasikan; menunggu review sebelum Phase 4 dan Phase 5.
+
+### Sprint 4.26 - Icon Foundation and Dashboard DONE (August 3, 2026)
+**Items:**
+- [x] Tambahkan AppIcons terpusat di lib/presentation/icons/app_icons.dart untuk pasangan nav outlined/rounded, action Dashboard, tipe transaksi, WalletType, alias kategori deterministik, dan fallback aman tanpa mengubah stored keys.
+- [x] Migrasikan NavigationBar Dashboard ke pasangan glyph Material Icons Rounded 26 dp dan kartu wallet ke icon langsung berdasarkan tipe wallet; Transaction History tetap deferred.
+- [x] Pertahankan guardrail visual: hero saldo dan heading tetap text-only, MoneyMetric tetap text-only, action transaksi memakai icon langsung, dan container tutorial tetap sebagai focal onboarding.
+- [x] Perkuat cashbook switcher dengan InkWell pressed state, Tooltip, button semantics, dan tinggi minimum 48 dp; selected state tetap menjadi satu-satunya indikasi icon pada row cashbook.
+- [x] Tambahkan focused tests dan real-glyph light/dark goldens; validasi widths 360/393/412, text scale 1.0/1.3, mapping/fallback, semantics, dan full test suite lulus.
+- [x] dart format dijalankan pada file Dart milik fase ini; flutter analyze tidak menemukan error/warning (16 info lama tetap ada); git diff --check lulus.
+- [ ] Transaction History, Report, Forms, Settings, Auth, dan wallet screens tetap deferred ke fase berikutnya.
 
