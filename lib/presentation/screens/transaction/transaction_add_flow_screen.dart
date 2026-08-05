@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/router.dart';
 import '../../../core/constants/constants.dart';
 import '../../../core/utils/utils.dart';
 import '../../../domain/entities/entities.dart';
@@ -10,15 +9,19 @@ import '../../providers/providers.dart';
 import '../../state/sequential_add_state.dart';
 import '../../widgets/sequential_flow_widgets.dart';
 
-/// Five-step transfer add flow. Transfer history is kept on its own route.
-class TransferScreen extends ConsumerStatefulWidget {
-  const TransferScreen({super.key});
+/// Five-step add flow for a new income or expense.
+class TransactionAddFlowScreen extends ConsumerStatefulWidget {
+  final TransactionType type;
+
+  const TransactionAddFlowScreen({super.key, required this.type});
 
   @override
-  ConsumerState<TransferScreen> createState() => _TransferScreenState();
+  ConsumerState<TransactionAddFlowScreen> createState() =>
+      _TransactionAddFlowScreenState();
 }
 
-class _TransferScreenState extends ConsumerState<TransferScreen> {
+class _TransactionAddFlowScreenState
+    extends ConsumerState<TransactionAddFlowScreen> {
   static const _totalSteps = 5;
 
   late final PageController _pageController;
@@ -26,12 +29,14 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   int _currentStep = 0;
   bool _isSubmitting = false;
 
+  bool get _isIncome => widget.type == TransactionType.income;
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
     _notesController = TextEditingController(
-      text: ref.read(transferDraftProvider).notes,
+      text: ref.read(transactionDraftProvider).notes,
     );
   }
 
@@ -61,40 +66,46 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     );
   }
 
-  bool _sourceIsEligible(WalletEntity wallet, TransferDraft draft) {
-    return isTransferSourceSufficient(wallet, draft.amount);
+  void _setNotes(String notes) {
+    ref.read(transactionDraftProvider.notifier).setNotes(notes);
+  }
+
+  bool _walletIsEligible(WalletEntity wallet, TransactionDraft draft) {
+    if (_isIncome) return true;
+    return wallet.currentBalance >= draft.amount;
   }
 
   bool _canContinue(
-    TransferDraft draft,
+    TransactionDraft draft,
+    AsyncValue<List<CategoryEntity>> categoriesAsync,
     AsyncValue<List<WalletEntity>> walletsAsync,
   ) {
     switch (_currentStep) {
       case 0:
         return Validators.validateAmountValue(draft.amount) == null;
       case 1:
-        return walletsAsync.whenOrNull(
-              data: (wallets) {
-                final source = _findWallet(wallets, draft.sourceWalletId);
-                return source != null && _sourceIsEligible(source, draft);
-              },
+        return categoriesAsync.whenOrNull(
+              data: (categories) => categories.any(
+                (category) =>
+                    category.type == widget.type &&
+                    category.categoryId == draft.categoryId,
+              ),
             ) ??
             false;
       case 2:
         return walletsAsync.whenOrNull(
               data: (wallets) {
-                final destination = _findWallet(
-                  wallets,
-                  draft.destinationWalletId,
-                );
-                return wallets.length >= 2 &&
-                    destination != null &&
-                    destination.walletId != draft.sourceWalletId;
+                for (final wallet in wallets) {
+                  if (wallet.walletId == draft.walletId) {
+                    return _walletIsEligible(wallet, draft);
+                  }
+                }
+                return false;
               },
             ) ??
             false;
       case 3:
-        return Validators.validatePastDate(draft.transferDate) == null;
+        return Validators.validatePastDate(draft.transactionDate) == null;
       case 4:
         return Validators.validateNotes(draft.notes) == null;
       default:
@@ -103,11 +114,12 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   }
 
   void _goNext(
-    TransferDraft draft,
+    TransactionDraft draft,
+    AsyncValue<List<CategoryEntity>> categoriesAsync,
     AsyncValue<List<WalletEntity>> walletsAsync,
   ) {
     if (_isSubmitting) return;
-    if (!_canContinue(draft, walletsAsync)) {
+    if (!_canContinue(draft, categoriesAsync, walletsAsync)) {
       _showValidationMessage();
       return;
     }
@@ -121,11 +133,11 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   void _showValidationMessage() {
     final message = switch (_currentStep) {
       0 => 'Masukkan jumlah lebih dari 0',
-      1 => 'Pilih dompet asal dengan saldo yang mencukupi',
-      2 => 'Pilih dompet tujuan yang berbeda',
+      1 => 'Pilih kategori terlebih dahulu',
+      2 => 'Pilih dompet yang saldonya mencukupi',
       3 => 'Pilih tanggal yang valid',
       _ =>
-        Validators.validateNotes(ref.read(transferDraftProvider).notes) ??
+        Validators.validateNotes(ref.read(transactionDraftProvider).notes) ??
             'Lengkapi catatan',
     };
     ScaffoldMessenger.of(
@@ -134,26 +146,21 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   }
 
   Future<void> _pickDate() async {
-    final draft = ref.read(transferDraftProvider);
+    final draft = ref.read(transactionDraftProvider);
     final today = dateOnly(DateTime.now());
     final picked = await showDatePicker(
       context: context,
-      initialDate: draft.transferDate,
+      initialDate: draft.transactionDate,
       firstDate: DateTime(2000),
       lastDate: today,
       locale: const Locale('id', 'ID'),
     );
     if (picked != null && mounted) {
-      ref.read(transferDraftProvider.notifier).setDate(picked);
+      ref.read(transactionDraftProvider.notifier).setDate(picked);
     }
   }
 
-  Future<void> _openWalletForm() async {
-    await context.push('/wallets/form');
-    if (mounted) ref.invalidate(walletsProvider);
-  }
-
-  Future<void> _submit(TransferDraft draft) async {
+  Future<void> _submit(TransactionDraft draft) async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
@@ -163,57 +170,76 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         throw Exception('Buku kas tidak ditemukan');
       }
 
+      final categories = await ref.read(
+        categoriesProvider(cashbook.cashbookId).future,
+      );
       final wallets = await ref.read(walletsProvider.future);
-      if (!hasTransferWalletPair(wallets)) {
-        throw Exception('Minimal dua dompet aktif diperlukan');
+      final category = _findCategory(categories, draft.categoryId);
+      final wallet = _findWallet(wallets, draft.walletId);
+
+      if (category == null || category.type != widget.type) {
+        throw Exception('Kategori tidak tersedia');
       }
-      final source = _findWallet(wallets, draft.sourceWalletId);
-      final destination = _findWallet(wallets, draft.destinationWalletId);
-      if (source == null || destination == null) {
-        throw Exception('Dompet tidak lagi tersedia');
-      }
-      if (source.walletId == destination.walletId) {
-        throw Exception('Tidak dapat transfer ke dompet yang sama');
-      }
-      if (!_sourceIsEligible(source, draft)) {
-        throw Exception('Saldo dompet asal tidak cukup');
+      if (wallet == null || !_walletIsEligible(wallet, draft)) {
+        throw Exception('Saldo dompet tidak cukup');
       }
 
       await ref
           .read(transactionRepositoryProvider)
-          .createTransfer(
+          .createTransaction(
             cashbookId: cashbook.cashbookId,
-            fromWalletId: source.walletId,
-            toWalletId: destination.walletId,
+            walletId: wallet.walletId,
+            categoryId: category.categoryId,
+            type: widget.type,
             amount: draft.amount,
+            // The add flow has no separate name field. Existing list/detail
+            // consumers safely fall back to category/placeholder when null.
+            name: null,
             notes: draft.notes.trim().isEmpty ? null : draft.notes.trim(),
-            transferDate: draft.transferDate,
+            transactionDate: draft.transactionDate,
           );
 
-      ref.invalidate(transfersProvider);
+      ref.invalidate(transactionsProvider);
       ref.invalidate(walletsProvider);
       ref.invalidate(totalBalanceProvider);
+      ref.invalidate(monthlySummaryProvider);
 
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       context.pop();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Transfer berhasil ditambahkan')),
+        SnackBar(
+          content: Text(
+            _isIncome
+                ? 'Pemasukan berhasil ditambahkan'
+                : 'Pengeluaran berhasil ditambahkan',
+          ),
+          backgroundColor: Theme.of(context).colorScheme.successColor,
+        ),
       );
     } catch (error) {
       if (!mounted) return;
       final raw = error.toString().toLowerCase();
       final message = raw.contains('saldo')
-          ? 'Saldo dompet asal tidak cukup'
-          : raw.contains('dua dompet')
-          ? 'Transfer membutuhkan minimal dua dompet aktif'
-          : 'Gagal menyimpan transfer. Silakan coba lagi.';
+          ? 'Saldo dompet tidak cukup untuk transaksi ini'
+          : 'Gagal menyimpan transaksi. Silakan coba lagi.';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  CategoryEntity? _findCategory(
+    List<CategoryEntity> categories,
+    String? categoryId,
+  ) {
+    if (categoryId == null) return null;
+    for (final category in categories) {
+      if (category.categoryId == categoryId) return category;
+    }
+    return null;
   }
 
   WalletEntity? _findWallet(List<WalletEntity> wallets, String? walletId) {
@@ -226,24 +252,31 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final draft = ref.watch(transferDraftProvider);
+    final draft = ref.watch(transactionDraftProvider);
+    final activeCashbook = ref.watch(activeCashbookProvider);
+    final categoriesAsync = activeCashbook == null
+        ? AsyncValue.data(<CategoryEntity>[])
+        : ref.watch(categoriesProvider(activeCashbook.cashbookId));
     final walletsAsync = ref.watch(walletsProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final flowColor = _isIncome
+        ? colorScheme.incomeColor
+        : colorScheme.expenseColor;
     final currentTitle = switch (_currentStep) {
       0 => 'Jumlah',
-      1 => 'Dompet asal',
-      2 => 'Dompet tujuan',
+      1 => 'Kategori',
+      2 => 'Dompet sumber',
       3 => 'Tanggal',
       _ => 'Catatan',
     };
     final currentSubtitle = switch (_currentStep) {
       0 => 'Gunakan keypad untuk memasukkan nominal Rupiah.',
-      1 => 'Pilih dompet yang saldonya mencukupi.',
-      2 => 'Dompet asal otomatis dikecualikan dari pilihan.',
+      1 => 'Pilih kategori yang paling sesuai.',
+      2 => 'Tentukan dompet tempat transaksi ini dicatat.',
       3 => 'Tanggal otomatis diisi hari ini.',
       _ => 'Catatan bersifat opsional dan boleh dilewati.',
     };
-    final canContinue = _canContinue(draft, walletsAsync);
+    final canContinue = _canContinue(draft, categoriesAsync, walletsAsync);
 
     return PopScope(
       canPop: false,
@@ -253,21 +286,18 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          backgroundColor: colorScheme.transferContainer,
-          foregroundColor: colorScheme.onTransferColor,
-          title: const Text('Tambah Transfer'),
+          backgroundColor: _isIncome
+              ? colorScheme.incomeContainer
+              : colorScheme.expenseContainer,
+          foregroundColor: _isIncome
+              ? colorScheme.onIncomeColor
+              : colorScheme.onExpenseColor,
+          title: Text(_isIncome ? 'Tambah Pemasukan' : 'Tambah Pengeluaran'),
           leading: IconButton(
             tooltip: 'Kembali',
             onPressed: _handleBack,
             icon: const Icon(Icons.arrow_back),
           ),
-          actions: [
-            IconButton(
-              tooltip: 'Riwayat transfer',
-              onPressed: () => context.push(AppRoutes.transferHistory),
-              icon: const Icon(Icons.history),
-            ),
-          ],
         ),
         body: SafeArea(
           top: false,
@@ -281,22 +311,22 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               ),
               Expanded(
                 child: PageView(
-                  key: const ValueKey('transfer-add-pages'),
+                  key: const ValueKey('transaction-add-pages'),
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _buildAmountStep(draft),
-                    _buildSourceStep(walletsAsync, draft),
-                    _buildDestinationStep(walletsAsync, draft),
-                    _buildDateStep(draft),
-                    _buildNotesStep(draft),
+                    _buildAmountStep(draft, flowColor),
+                    _buildCategoryStep(categoriesAsync),
+                    _buildWalletStep(walletsAsync, draft),
+                    _buildDateStep(draft, flowColor),
+                    _buildNotesStep(draft, flowColor),
                   ],
                 ),
               ),
               SequentialFlowNavigation(
                 onBack: _handleBack,
                 onContinue: canContinue
-                    ? () => _goNext(draft, walletsAsync)
+                    ? () => _goNext(draft, categoriesAsync, walletsAsync)
                     : null,
                 continueLabel: _currentStep == _totalSteps - 1
                     ? 'Simpan'
@@ -310,10 +340,9 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     );
   }
 
-  Widget _buildAmountStep(TransferDraft draft) {
-    final colorScheme = Theme.of(context).colorScheme;
+  Widget _buildAmountStep(TransactionDraft draft, Color flowColor) {
     return ListView(
-      key: const ValueKey('transfer-step-amount'),
+      key: const ValueKey('transaction-step-amount'),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screenHorizontal,
         AppSpacing.md,
@@ -328,7 +357,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
             decoration: BoxDecoration(
-              color: colorScheme.transferColor.withValues(alpha: 0.12),
+              color: flowColor.withValues(alpha: 0.12),
               borderRadius: AppRadius.cardBorder,
             ),
             child: FittedBox(
@@ -338,7 +367,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  color: colorScheme.transferColor,
+                  color: flowColor,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -349,67 +378,91 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         AmountKeypad(
           canDelete: draft.amount > 0,
           onDigit: (digit) {
-            ref.read(transferDraftProvider.notifier).appendDigit(digit);
+            ref.read(transactionDraftProvider.notifier).appendDigit(digit);
           },
           onBackspace: () {
-            ref.read(transferDraftProvider.notifier).deleteDigit();
+            ref.read(transactionDraftProvider.notifier).deleteDigit();
           },
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Center(
-          child: TextButton.icon(
-            onPressed: () => context.push(AppRoutes.transferHistory),
-            icon: const Icon(Icons.history, size: AppIconSize.small),
-            label: const Text('Lihat riwayat transfer'),
-            style: TextButton.styleFrom(
-              minimumSize: const Size(48, AppComponentHeight.interactive),
-            ),
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildSourceStep(
-    AsyncValue<List<WalletEntity>> walletsAsync,
-    TransferDraft draft,
-  ) {
-    return _buildWalletSelectionStep(
-      key: const ValueKey('transfer-step-source'),
-      walletsAsync: walletsAsync,
-      draft: draft,
-      title: 'Pilih dompet asal',
-      subtitle: 'Saldo dompet asal akan berkurang setelah transfer berhasil.',
-      isSource: true,
-    );
-  }
-
-  Widget _buildDestinationStep(
-    AsyncValue<List<WalletEntity>> walletsAsync,
-    TransferDraft draft,
-  ) {
-    return _buildWalletSelectionStep(
-      key: const ValueKey('transfer-step-destination'),
-      walletsAsync: walletsAsync,
-      draft: draft,
-      title: 'Pilih dompet tujuan',
-      subtitle: 'Pilih dompet tujuan yang berbeda dari dompet asal.',
-      isSource: false,
-    );
-  }
-
-  Widget _buildWalletSelectionStep({
-    required Key key,
-    required AsyncValue<List<WalletEntity>> walletsAsync,
-    required TransferDraft draft,
-    required String title,
-    required String subtitle,
-    required bool isSource,
-  }) {
+  Widget _buildCategoryStep(AsyncValue<List<CategoryEntity>> categoriesAsync) {
+    final draft = ref.watch(transactionDraftProvider);
     return SelectionStepShell(
-      key: key,
-      title: title,
-      subtitle: subtitle,
+      key: const ValueKey('transaction-step-category'),
+      title: 'Pilih kategori',
+      subtitle: 'Kategori membantu merangkum transaksi di laporan.',
+      child: categoriesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => SelectionStatePanel(
+          icon: Icons.cloud_off_outlined,
+          title: 'Kategori belum tersedia',
+          message: 'Periksa koneksi lalu coba muat ulang kategori.',
+          actionLabel: 'Coba lagi',
+          onAction: () {
+            final cashbook = ref.read(activeCashbookProvider);
+            if (cashbook != null) {
+              ref.invalidate(categoriesProvider(cashbook.cashbookId));
+            }
+          },
+        ),
+        data: (allCategories) {
+          final categories = allCategories
+              .where((category) => category.type == widget.type)
+              .toList();
+          if (categories.isEmpty) {
+            return const SelectionStatePanel(
+              icon: Icons.category_outlined,
+              title: 'Belum ada kategori',
+              message: 'Kategori untuk tipe transaksi ini belum tersedia.',
+            );
+          }
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 280 ? 3 : 2;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: AppSpacing.sm,
+                  crossAxisSpacing: AppSpacing.sm,
+                  mainAxisExtent: 112,
+                ),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  return CategoryOptionTile(
+                    key: ValueKey('category-option-${category.categoryId}'),
+                    category: category,
+                    selected: category.categoryId == draft.categoryId,
+                    onTap: () {
+                      ref
+                          .read(transactionDraftProvider.notifier)
+                          .setCategory(category.categoryId);
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildWalletStep(
+    AsyncValue<List<WalletEntity>> walletsAsync,
+    TransactionDraft draft,
+  ) {
+    return SelectionStepShell(
+      key: const ValueKey('transaction-step-wallet'),
+      title: 'Pilih dompet sumber',
+      subtitle: _isIncome
+          ? 'Uang masuk akan dicatat ke dompet yang dipilih.'
+          : 'Dompet dengan saldo kurang akan dinonaktifkan.',
       child: walletsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => SelectionStatePanel(
@@ -420,29 +473,18 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           onAction: () => ref.invalidate(walletsProvider),
         ),
         data: (wallets) {
-          if (!hasTransferWalletPair(wallets)) {
+          if (wallets.isEmpty) {
             return SelectionStatePanel(
-              icon: Icons.swap_horiz_outlined,
-              title: 'Butuh dua dompet aktif',
-              message:
-                  'Transfer memerlukan minimal dua dompet aktif. Tambahkan dompet lain untuk melanjutkan.',
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Belum ada dompet',
+              message: 'Buat dompet terlebih dahulu untuk mencatat transaksi.',
               actionLabel: 'Buat dompet',
-              onAction: _openWalletForm,
+              onAction: () async {
+                await context.push('/wallets/form');
+                if (mounted) ref.invalidate(walletsProvider);
+              },
             );
           }
-
-          final options = isSource
-              ? wallets
-              : transferDestinationOptions(wallets, draft.sourceWalletId);
-          if (!isSource && options.isEmpty) {
-            return const SelectionStatePanel(
-              icon: Icons.swap_horiz_outlined,
-              title: 'Pilih dompet asal dahulu',
-              message:
-                  'Kembali ke langkah sebelumnya untuk memilih dompet asal.',
-            );
-          }
-
           return LayoutBuilder(
             builder: (context, constraints) {
               final columnCount = constraints.maxWidth >= 340 ? 2 : 1;
@@ -453,34 +495,22 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
               return Wrap(
                 spacing: gap,
                 runSpacing: gap,
-                children: options.map((wallet) {
-                  final disabledReason =
-                      isSource && !_sourceIsEligible(wallet, draft)
-                      ? 'Saldo kurang dari nominal'
-                      : null;
-                  final selectedId = isSource
-                      ? draft.sourceWalletId
-                      : draft.destinationWalletId;
-                  final onTap = disabledReason != null
+                children: wallets.map((wallet) {
+                  final disabledReason = _walletIsEligible(wallet, draft)
                       ? null
-                      : () {
-                          final controller = ref.read(
-                            transferDraftProvider.notifier,
-                          );
-                          if (isSource) {
-                            controller.setSourceWallet(wallet.walletId);
-                          } else {
-                            controller.setDestinationWallet(wallet.walletId);
-                          }
-                        };
+                      : 'Saldo kurang dari nominal';
                   return SizedBox(
                     width: cardWidth,
                     child: WalletOptionCard(
                       key: ValueKey('wallet-option-${wallet.walletId}'),
                       wallet: wallet,
-                      selected: selectedId == wallet.walletId,
+                      selected: wallet.walletId == draft.walletId,
                       disabledReason: disabledReason,
-                      onTap: onTap,
+                      onTap: disabledReason == null
+                          ? () => ref
+                                .read(transactionDraftProvider.notifier)
+                                .setWallet(wallet.walletId)
+                          : null,
                     ),
                   );
                 }).toList(),
@@ -492,10 +522,10 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     );
   }
 
-  Widget _buildDateStep(TransferDraft draft) {
+  Widget _buildDateStep(TransactionDraft draft, Color flowColor) {
     final colorScheme = Theme.of(context).colorScheme;
     return ListView(
-      key: const ValueKey('transfer-step-date'),
+      key: const ValueKey('transaction-step-date'),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screenHorizontal,
         AppSpacing.lg,
@@ -520,7 +550,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         Semantics(
           button: true,
           label:
-              'Tanggal transfer ${DateFormatter.formatFullDate(draft.transferDate)}',
+              'Tanggal transaksi ${DateFormatter.formatFullDate(draft.transactionDate)}',
           child: Material(
             color: colorScheme.surfaceContainerLow,
             borderRadius: AppRadius.cardBorder,
@@ -535,14 +565,11 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        color: colorScheme.transferColor,
-                      ),
+                      Icon(Icons.calendar_today_outlined, color: flowColor),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
-                          DateFormatter.formatFullDate(draft.transferDate),
+                          DateFormatter.formatFullDate(draft.transactionDate),
                           style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
@@ -562,11 +589,11 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
     );
   }
 
-  Widget _buildNotesStep(TransferDraft draft) {
+  Widget _buildNotesStep(TransactionDraft draft, Color flowColor) {
     final colorScheme = Theme.of(context).colorScheme;
     final notesError = Validators.validateNotes(draft.notes);
     return ListView(
-      key: const ValueKey('transfer-step-notes'),
+      key: const ValueKey('transaction-step-notes'),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screenHorizontal,
         AppSpacing.lg,
@@ -582,7 +609,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Langkah ini boleh dilewati. Catatan membantu mengingat konteks transfer.',
+          'Langkah ini boleh dilewati. Catatan membantu mengingat konteks transaksi.',
           style: Theme.of(
             context,
           ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
@@ -593,15 +620,14 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           maxLines: 5,
           maxLength: 500,
           textCapitalization: TextCapitalization.sentences,
-          onChanged: (value) {
-            ref.read(transferDraftProvider.notifier).setNotes(value);
-          },
-          decoration: const InputDecoration(
+          onChanged: _setNotes,
+          decoration: InputDecoration(
             labelText: 'Catatan (opsional)',
-            hintText: 'Contoh: pindah dana ke rekening tabungan',
+            hintText: 'Contoh: pembayaran rutin bulan ini',
             alignLabelWithHint: true,
-            prefixIcon: Icon(Icons.notes_outlined),
-          ).copyWith(errorText: notesError),
+            prefixIcon: Icon(Icons.notes_outlined, color: flowColor),
+            errorText: notesError,
+          ),
         ),
       ],
     );

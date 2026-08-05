@@ -15,9 +15,11 @@ import '../presentation/screens/wallet/wallet_detail_screen.dart';
 import '../presentation/screens/wallet/wallet_form_screen.dart';
 import '../presentation/screens/wallet/wallet_list_screen.dart';
 import '../presentation/screens/transaction/transaction_form_screen.dart';
+import '../presentation/screens/transaction/transaction_add_flow_screen.dart';
 import '../presentation/screens/transaction/transaction_detail_screen.dart';
 import '../presentation/screens/transaction/transaction_list_screen.dart';
 import '../presentation/screens/transfer/transfer_screen.dart';
+import '../presentation/screens/transfer/transfer_history_screen.dart';
 import '../presentation/screens/report/monthly_report_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/splash/loading_screen.dart';
@@ -34,7 +36,12 @@ class AppRoutes {
   static const String wallets = '/wallets';
   static const String transactions = '/transactions';
   static const String addTransaction = '/transactions/add';
+  static const String addIncomeTransaction = '/transactions/add/income';
+  static const String addExpenseTransaction = '/transactions/add/expense';
+  static const String transactionForm = '/transactions/form';
+  static const String transactionDetail = '/transactions/detail';
   static const String transfer = '/transfer';
+  static const String transferHistory = '/transfer/history';
   static const String monthlyReport = '/report/monthly';
   static const String annualReport = '/report/annual';
   static const String settings = '/settings';
@@ -178,18 +185,53 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TransactionListScreen(),
       ),
       GoRoute(
-        path: '/transactions/form',
+        path: AppRoutes.addTransaction,
+        name: 'addTransaction',
+        redirect: (_, _) => AppRoutes.addIncomeTransaction,
+      ),
+      GoRoute(
+        path: AppRoutes.addIncomeTransaction,
+        name: 'addIncomeTransaction',
+        builder: (context, state) =>
+            const TransactionAddFlowScreen(type: TransactionType.income),
+      ),
+      GoRoute(
+        path: AppRoutes.addExpenseTransaction,
+        name: 'addExpenseTransaction',
+        builder: (context, state) =>
+            const TransactionAddFlowScreen(type: TransactionType.expense),
+      ),
+      GoRoute(
+        path: AppRoutes.transactionForm,
         name: 'transactionForm',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
+          final extra = state.extra;
+          if (extra is! Map || extra['type'] is! TransactionType) {
+            return const _RouteFallbackScreen(
+              message: 'Form transaksi membutuhkan data edit yang valid.',
+            );
+          }
+          final transaction = extra['transaction'];
+          if (transaction == null) {
+            // Compatibility fallback for older callers that still opened the
+            // old create route without an entity.
+            return TransactionAddFlowScreen(
+              type: extra['type'] as TransactionType,
+            );
+          }
+          if (transaction is! TransactionEntity) {
+            return const _RouteFallbackScreen(
+              message: 'Data transaksi tidak dapat dibaca.',
+            );
+          }
           return TransactionFormScreen(
             type: extra['type'] as TransactionType,
-            transaction: extra['transaction'] as TransactionEntity?,
+            transaction: transaction,
           );
         },
       ),
       GoRoute(
-        path: '/transactions/detail',
+        path: AppRoutes.transactionDetail,
         name: 'transactionDetail',
         builder: (context, state) => TransactionDetailScreen(
           transaction: state.extra as TransactionEntity,
@@ -199,6 +241,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.transfer,
         name: 'transfer',
         builder: (context, state) => const TransferScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.transferHistory,
+        name: 'transferHistory',
+        builder: (context, state) => const TransferHistoryScreen(),
       ),
       // Report Routes
       GoRoute(
@@ -225,5 +272,24 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+class _RouteFallbackScreen extends StatelessWidget {
+  final String message;
+
+  const _RouteFallbackScreen({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Transaksi')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(message, textAlign: TextAlign.center),
+        ),
+      ),
+    );
   }
 }

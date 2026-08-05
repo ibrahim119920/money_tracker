@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 3, 2026 (Sprint 4.26 - Icon Foundation and Dashboard)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 5, 2026 (Sprint 4.27 - Sequential Transaction Add Flow)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -20,6 +20,7 @@
 | `lib/core/constants/supabase_keys.dart` | `SupabaseKeys.supabaseUrl`, `SupabaseKeys.supabaseAnonKey` |
 | `lib/core/utils/currency_formatter.dart` | `CurrencyFormatter.format()`, `.parse()`, `.formatCompact()` |
 | `lib/core/utils/date_formatter.dart` | `DateFormatter.formatLongDate()`, `.formatShortDate()`, `.formatMonthYear()`, `.relative()` |
+| `lib/core/utils/money_amount.dart` | Integer Rupiah keypad helpers, leading-zero normalization, and BIGINT overflow guard |
 | `lib/core/utils/validators.dart` | `Validators.validateEmail/Password/Amount/Name/Required/Notes/...` |
 
 ---
@@ -77,6 +78,8 @@
 | `lib/presentation/providers/providers.dart` | `selectedMonthProvider` | `StateProvider<DateTime>` | Bulan yg dipilih di transaction list |
 | `lib/presentation/providers/providers.dart` | `monthlySummaryProvider` | `FutureProvider` | Summary income/expense setiap bulan; delegate ke `TransactionRepository.getMonthlySummaryForReport()` |
 | `lib/presentation/providers/providers.dart` | `transfersProvider` | `FutureProvider` | Transfer history; delegate ke `TransactionRepository.getTransfersByCashbook()` |
+| `lib/presentation/providers/providers.dart` | `transactionDraftProvider` | `AutoDisposeNotifierProvider` | Typed sequential income/expense draft; integer amount and five-step fields |
+| `lib/presentation/providers/providers.dart` | `transferDraftProvider` | `AutoDisposeNotifierProvider` | Typed sequential transfer draft; clears conflicting destination |
 | `lib/presentation/providers/providers.dart` | `reportMonthProvider` | `StateProvider<DateTime>` | Bulan dipilih di halaman laporan |
 | `lib/presentation/providers/providers.dart` | `reportMonthlySummaryProvider` | `FutureProvider.family<Map<String,int>, DateTime>` | Summary income/expense untuk bulan tertentu (laporan) |
 | `lib/presentation/providers/providers.dart` | `reportCategoryBreakdownProvider` | `FutureProvider.family` | Pie chart data: breakdown per kategori. Param: `({cashbookId, month, transactionType})` |
@@ -96,9 +99,11 @@
 | `lib/presentation/screens/wallet/wallet_form_screen.dart` | `WalletFormScreen` | ✅ |
 | `lib/presentation/screens/wallet/wallet_detail_screen.dart` | `WalletDetailScreen`, `_walletMonthlySummaryProvider`, `_walletTransactionsProvider` | ✅ — loading summary/transactions use lightweight placeholders |
 | `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat transaction rows with grouped date hierarchy; loading uses placeholders |
-| `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField`, `_CategoryPickerSheet` | ✅ |
+| `lib/presentation/screens/transaction/transaction_add_flow_screen.dart` | `TransactionAddFlowScreen` | ✅ — sequential income/expense add: amount, category, wallet, date, notes |
+| `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField`, `_CategoryPickerSheet` | ✅ — existing edit form remains at `/transactions/form` |
 | `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ |
-| `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen`, `_WalletDropdownItem`, `_ThousandSeparatorFormatter` | ✅ |
+| `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen` | ✅ — sequential five-step transfer add flow |
+| `lib/presentation/screens/transfer/transfer_history_screen.dart` | `TransferHistoryScreen` | ✅ — dedicated `/transfer/history` history screen |
 | `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_ReportSummarySurface`, `_PieChartSection`, `_ReportTypeSegmentedControl`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ — tonal grouped surfaces, compact navigation, semantic chart controls |
 | `lib/presentation/screens/settings/settings_screen.dart` | `SettingsScreen` | ✅ P0 — profile, password, theme mode, default cashbook, about, logout |
 
@@ -108,6 +113,13 @@
 | `lib/presentation/widgets/transaction_tile.dart` | `TransactionTile` (props: transaction, onTap, showWalletName, showDivider, dense) | Flat Android list row; semantic color dibatasi pada icon container dan amount, dengan divider opsional serta overflow nominal yang aman |
 | `lib/presentation/widgets/app_section_header.dart` | `AppSectionHeader` | Header section ringkas dengan action opsional atau trailing widget; tanpa business logic |
 | `lib/presentation/widgets/money_metric.dart` | `MoneyMetric`, `MoneyMetricType` | Metric uang dengan nilai yang sudah diformat, semantic color, layout compact/regular, dan overflow aman |
+| `lib/presentation/widgets/sequential_flow_widgets.dart` | `SequentialFlowProgress`, `SequentialFlowNavigation`, `AmountKeypad`, `CategoryOptionTile`, `WalletOptionCard`, selection state shell | Shared sequential shell with purpose-specific selection cards and TalkBack semantics |
+
+### Sequential Draft State
+| File | Class | Catatan |
+|---|---|---|
+| `lib/presentation/state/sequential_add_state.dart` | `TransactionDraft`, `TransactionDraftController` | Typed auto-disposed draft; no UI/controller/backend ownership |
+| `lib/presentation/state/sequential_add_state.dart` | `TransferDraft`, `TransferDraftController` | Source/destination exclusion, balance eligibility, date/notes validation |
 
 ---
 
@@ -126,9 +138,13 @@
 | `AppRoutes.walletForm` | `/wallets/form` | `WalletFormScreen` | |
 | `AppRoutes.walletDetail` | `/wallets/detail` | `WalletDetailScreen` | |
 | `AppRoutes.transactions` | `/transactions` | `TransactionListScreen` | |
-| `AppRoutes.transactionForm` | `/transactions/form` | `TransactionFormScreen` | |
+| `AppRoutes.addTransaction` | `/transactions/add` | Redirect to income add flow | Legacy compatibility path |
+| `AppRoutes.addIncomeTransaction` | `/transactions/add/income` | `TransactionAddFlowScreen(income)` | Sequential add |
+| `AppRoutes.addExpenseTransaction` | `/transactions/add/expense` | `TransactionAddFlowScreen(expense)` | Sequential add |
+| `AppRoutes.transactionForm` | `/transactions/form` | `TransactionFormScreen` | Existing edit form; invalid extras use safe fallback |
 | `AppRoutes.transactionDetail` | `/transactions/detail` | `TransactionDetailScreen` | |
-| `AppRoutes.transfer` | `/transfer` | `TransferScreen` | Transfer antar dompet + riwayat |
+| `AppRoutes.transfer` | `/transfer` | `TransferScreen` | Sequential transfer add |
+| `AppRoutes.transferHistory` | `/transfer/history` | `TransferHistoryScreen` | Transfer history |
 | `AppRoutes.monthlyReport` | `/report/monthly` | `MonthlyReportScreen` | Month picker, summary cards, pie chart, bar chart |
 | `AppRoutes.settings` | `/settings` | `SettingsScreen` | Profil, app settings, logout |
 
@@ -157,8 +173,8 @@
 | **Dashboard + Transaction List** | **✅ Lengkap** | Total balance, monthly summary, wallet carousel, add transaction FAB, filter by type/month |
 | Cashbook CRUD | ✅ Lengkap | |
 | Wallet CRUD + Detail | ✅ Lengkap | |
-| Transaksi CRUD + Detail | ✅ Lengkap | |
-| Transfer antar wallet | ✅ Lengkap | Screen transfer, route, repository method, provider refresh sudah terpasang |
+| Transaksi CRUD + Detail | ✅ Lengkap | Sequential add income/expense; `/transactions/form` tetap edit; name-null fallback diaudit |
+| Transfer antar wallet | ✅ Lengkap | Sequential add at `/transfer`, history at `/transfer/history`, repository/provider refresh tetap terpasang |
 | Laporan / Report | ✅ P0-P2 | Month picker, summary cards, pie chart (kategori), bar chart (tren 12 bulan) |
 | Settings | ✅ P0 | Profil akun, ubah password, mode tema, default cashbook, about, logout |
 | Recurring Transactions | ⏳ Belum | Entity ada, tidak ada repo/screen |
@@ -719,4 +735,16 @@ Future<void> _createTransaction() async {
 - [x] Tambahkan focused tests dan real-glyph light/dark goldens; validasi widths 360/393/412, text scale 1.0/1.3, mapping/fallback, semantics, dan full test suite lulus.
 - [x] dart format dijalankan pada file Dart milik fase ini; flutter analyze tidak menemukan error/warning (16 info lama tetap ada); git diff --check lulus.
 - [ ] Transaction History, Report, Forms, Settings, Auth, dan wallet screens tetap deferred ke fase berikutnya.
+
+### Sprint 4.27 - Sequential Transaction Add Flow DONE (August 5, 2026)
+**Items:**
+- [x] Tambahkan route eksplisit `/transactions/add/income` dan `/transactions/add/expense`; `/transactions/form` tetap untuk edit; `/transfer` menjadi add flow dan `/transfer/history` tetap discoverable.
+- [x] Implementasikan `TransactionDraft` dan `TransferDraft` auto-disposed dengan controller kecil; PageView lima langkah memakai `NeverScrollableScrollPhysics` dan validasi programatik.
+- [x] Implementasikan keypad nominal integer Rupiah dengan normalisasi leading zero, backspace aman, target minimal 48 dp, semantics, dan guard overflow PostgreSQL BIGINT.
+- [x] Tambahkan selection shell bersama dengan `CategoryOptionTile` dan `WalletOptionCard` purpose-specific; wallet source menampilkan disabled reason untuk saldo kurang dan state khusus kurang dari dua wallet.
+- [x] Pertahankan repository/entity/schema serta invalidation mutation yang ada; submit melakukan re-check data live dan mencegah duplicate submit.
+- [x] Audit `transaction.name`: model mapping, tile fallback, detail fallback, dan edit form aman untuk null; add flow memakai `name: null` tanpa mengubah historical/edit behavior.
+- [x] Tambahkan focused tests, light/dark responsive goldens untuk income/expense/transfer, serta visual QA pada 360/393/412 dp.
+- [x] Sinkronkan `docs/navigation-flow.md`, `docs/feature-modules.md`, `docs/state-management.md`, dan file dictionary ini.
+- [ ] Android device screenshot/E2E submit masih memerlukan backend/session nyata; local validation memakai provider overrides.
 

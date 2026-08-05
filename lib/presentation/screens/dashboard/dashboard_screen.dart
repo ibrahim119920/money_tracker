@@ -229,10 +229,7 @@ void _showAddTransactionSheet(BuildContext context) {
             subtitle: const Text('Catat uang masuk'),
             onTap: () {
               Navigator.pop(context);
-              context.push(
-                '/transactions/form',
-                extra: {'type': TransactionType.income, 'transaction': null},
-              );
+              context.push('/transactions/add/income');
             },
           ),
           ListTile(
@@ -245,10 +242,7 @@ void _showAddTransactionSheet(BuildContext context) {
             subtitle: const Text('Catat uang keluar'),
             onTap: () {
               Navigator.pop(context);
-              context.push(
-                '/transactions/form',
-                extra: {'type': TransactionType.expense, 'transaction': null},
-              );
+              context.push('/transactions/add/expense');
             },
           ),
           ListTile(

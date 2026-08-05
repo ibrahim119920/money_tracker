@@ -23,9 +23,13 @@ Router configured in `lib/app/router.dart` via `goRouterProvider`.
 | `/wallets/form` | `/wallets/form` | `WalletFormScreen(wallet?)` | ✅ Yes |
 | `/wallets/detail` | `/wallets/detail` | `WalletDetailScreen(wallet)` | ✅ Yes |
 | `AppRoutes.transactions` | `/transactions` | `TransactionListScreen` | ✅ Yes |
-| `/transactions/form` | `/transactions/form` | `TransactionFormScreen(type, transaction?)` | ✅ Yes |
+| `AppRoutes.addTransaction` | `/transactions/add` | Redirects to income add flow for legacy callers | ✅ Yes |
+| `AppRoutes.addIncomeTransaction` | `/transactions/add/income` | `TransactionAddFlowScreen(income)` (amount → category → wallet → date → notes) | ✅ Yes |
+| `AppRoutes.addExpenseTransaction` | `/transactions/add/expense` | `TransactionAddFlowScreen(expense)` (amount → category → wallet → date → notes) | ✅ Yes |
+| `AppRoutes.transactionForm` | `/transactions/form` | Existing `TransactionFormScreen` edit form; invalid extras show a safe fallback | ✅ Yes |
 | `/transactions/detail` | `/transactions/detail` | `TransactionDetailScreen(transaction)` | ✅ Yes |
 | `AppRoutes.transfer` | `/transfer` | `TransferScreen` | ✅ Yes |
+| `AppRoutes.transferHistory` | `/transfer/history` | `TransferHistoryScreen` | ✅ Yes |
 | `AppRoutes.monthlyReport` | `/report/monthly` | `MonthlyReportScreen` | ✅ Yes |
 | `AppRoutes.settings` | `/settings` | `SettingsScreen` | ✅ Yes |
 
@@ -52,9 +56,12 @@ Router configured in `lib/app/router.dart` via `goRouterProvider`.
               │     ├── /wallets/form       (create or edit wallet)
               │     └── /wallets/detail     (wallet detail + transactions)
               ├── /transactions
-              │     ├── /transactions/form  (create or edit transaction)
+              │     ├── /transactions/add/income   (sequential income add)
+              │     ├── /transactions/add/expense  (sequential expense add)
+              │     ├── /transactions/form         (existing edit form)
               │     └── /transactions/detail
-              ├── /transfer          ✅ implemented
+              ├── /transfer          (sequential transfer add)
+              │     └── /transfer/history
               ├── /report/monthly    ✅ implemented
               └── /settings          ✅ implemented
 ```
@@ -106,10 +113,10 @@ context.push(AppRoutes.transactions);
 // Passing a single entity
 context.push('/wallets/detail', extra: walletEntity);
 
-// Passing multiple values
+// Existing edit form only; add flows use explicit typed paths.
 context.push('/transactions/form', extra: {
   'type': TransactionType.expense,
-  'transaction': null,  // null = create mode
+  'transaction': transaction,
 });
 ```
 
@@ -130,6 +137,9 @@ builder: (context, state) => WalletDetailScreen(
 | Not logged in | `/landing` | CTA buttons → `/login` or `/register` |
 | Returning user | `/loading` → `/dashboard` | Pre-warms providers; dashboard muncul dengan data siap |
 | New user (post-register) | `/loading` → `/dashboard` | `_TutorialOverlay` muncul di dashboard, guided step-by-step |
+| Add income | `/transactions/add/income` | Sequential five-step flow; dashboard quick action uses this path |
+| Add expense | `/transactions/add/expense` | Sequential five-step flow; dashboard quick action uses this path |
+| Add transfer | `/transfer` | Sequential five-step flow; history stays at `/transfer/history` |
 
 ---
 
