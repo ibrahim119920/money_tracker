@@ -9,7 +9,7 @@ import '../../providers/providers.dart';
 
 /// List screen untuk menampilkan semua buku kas
 class CashbookListScreen extends ConsumerWidget {
-  const CashbookListScreen({Key? key}) : super(key: key);
+  const CashbookListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,77 +18,85 @@ class CashbookListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Daftar Buku Kas')),
-      body: cashbooksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Gagal memuat buku kas: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(cashbooksProvider),
-                child: const Text('Coba Lagi'),
-              ),
-            ],
+      body: SafeArea(
+        top: false,
+        child: cashbooksAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Gagal memuat buku kas: $error'),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton(
+                  onPressed: () => ref.invalidate(cashbooksProvider),
+                  child: const Text('Coba Lagi'),
+                ),
+              ],
+            ),
           ),
-        ),
-        data: (cashbooks) {
-          if (cashbooks.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.book_outlined,
-                    size: 64,
-                    color: AppColors.textTertiary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Belum ada buku kas',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () =>
-                        context.push('/cashbooks/form', extra: null),
-                    child: const Text('Tambah Buku Kas Sekarang'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: cashbooks.length,
-            itemBuilder: (context, index) {
-              final cashbook = cashbooks[index];
-              return CashbookListItem(
-                cashbook: cashbook,
-                onEdit: () {
-                  context.push('/cashbooks/form', extra: cashbook);
-                },
-                onSetDefault: () {
-                  _setDefaultCashbook(
-                    context,
-                    ref,
-                    cashbook,
-                    currentUser.value?.userId ?? '',
-                  );
-                },
-                onDelete: () {
-                  _deleteCashbook(context, ref, cashbook);
-                },
-                onTap: () {
-                  ref.read(activeCashbookProvider.notifier).state = cashbook;
-                  Navigator.pop(context);
-                },
+          data: (cashbooks) {
+            if (cashbooks.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.book_outlined,
+                      size: 64,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Belum ada buku kas',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    FilledButton(
+                      onPressed: () =>
+                          context.push('/cashbooks/form', extra: null),
+                      child: const Text('Tambah Buku Kas Sekarang'),
+                    ),
+                  ],
+                ),
               );
-            },
-          );
-        },
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenHorizontal,
+                AppSpacing.sm,
+                AppSpacing.screenHorizontal,
+                AppSpacing.xl,
+              ),
+              itemCount: cashbooks.length,
+              itemBuilder: (context, index) {
+                final cashbook = cashbooks[index];
+                return CashbookListItem(
+                  cashbook: cashbook,
+                  onEdit: () {
+                    context.push('/cashbooks/form', extra: cashbook);
+                  },
+                  onSetDefault: () {
+                    _setDefaultCashbook(
+                      context,
+                      ref,
+                      cashbook,
+                      currentUser.value?.userId ?? '',
+                    );
+                  },
+                  onDelete: () {
+                    _deleteCashbook(context, ref, cashbook);
+                  },
+                  onTap: () {
+                    ref.read(activeCashbookProvider.notifier).state = cashbook;
+                    Navigator.pop(context);
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/cashbooks/form', extra: null),
@@ -209,13 +217,13 @@ class CashbookListItem extends ConsumerWidget {
   final VoidCallback onTap;
 
   const CashbookListItem({
-    Key? key,
+    super.key,
     required this.cashbook,
     required this.onEdit,
     required this.onSetDefault,
     required this.onDelete,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -226,15 +234,20 @@ class CashbookListItem extends ConsumerWidget {
       }),
     );
 
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
+      color: colorScheme.surfaceContainerLow,
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: ListTile(
         onTap: onTap,
-        leading: Icon(Icons.book_outlined, color: AppColors.primary),
+        leading: Icon(Icons.book_outlined, color: colorScheme.primary),
         title: Row(
           children: [
             Expanded(
               child: Text(
                 cashbook.cashbookName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
@@ -242,14 +255,14 @@ class CashbookListItem extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(4),
+                  color: colorScheme.primaryContainer,
+                  borderRadius: AppRadius.smallBorder,
                 ),
                 child: Text(
                   'Utama',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: Colors.white),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onPrimaryContainer,
+                  ),
                 ),
               ),
           ],

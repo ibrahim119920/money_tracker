@@ -33,6 +33,7 @@ A personal finance management Flutter app for Indonesian users. Features: cashbo
 | [docs/feature-modules.md](docs/feature-modules.md) | Feature-by-feature breakdown with file paths and status |
 | [docs/state-management.md](docs/state-management.md) | All Riverpod providers, mutation pattern, what to invalidate |
 | [docs/navigation-flow.md](docs/navigation-flow.md) | All routes, auth redirect logic, navigation patterns |
+| [docs/ui-analysis-android.md](docs/ui-analysis-android.md) | Android UI audit: visual quality, dark mode, accessibility, edge-to-edge, and permissions |
 | [.github/copilot-instructions.md](.github/copilot-instructions.md) | Coding conventions, naming rules, do/don't list |
 | [.github/PROJECT_DICTIONARY.md](.github/PROJECT_DICTIONARY.md) | Detailed class/file map, sprint log, debug checklist |
 

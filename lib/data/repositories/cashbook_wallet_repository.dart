@@ -734,6 +734,15 @@ class SettingsRepository {
     }
   }
 
+  /// Mengirim email pemulihan password untuk user yang belum bisa login.
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    try {
+      await _client.auth.resetPasswordForEmail(email);
+    } catch (e) {
+      throw Exception('Gagal mengirim email pemulihan password: $e');
+    }
+  }
+
   /// Logout user
   Future<void> signOut() async {
     try {

@@ -78,7 +78,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
         context: context,
         isScrollControlled: true,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: AppRadius.prominentTopBorder,
         ),
         builder: (_) => _CategoryPickerSheet(
           categories: categories,
@@ -111,6 +111,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
+      locale: const Locale('id', 'ID'),
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -196,7 +197,13 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final typeColor = _isIncome ? AppColors.income : AppColors.expense;
+    final colorScheme = Theme.of(context).colorScheme;
+    final typeColor = _isIncome
+        ? colorScheme.incomeContainer
+        : colorScheme.expenseContainer;
+    final typeForeground = _isIncome
+        ? colorScheme.onIncomeColor
+        : colorScheme.onExpenseColor;
     final title = _isEdit
         ? (_isIncome ? 'Edit Pemasukan' : 'Edit Pengeluaran')
         : (_isIncome ? 'Tambah Pemasukan' : 'Tambah Pengeluaran');
@@ -205,84 +212,94 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       appBar: AppBar(
         title: Text(title),
         backgroundColor: typeColor,
-        foregroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: typeForeground,
+        iconTheme: IconThemeData(color: typeForeground),
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: typeForeground,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            _AmountField(controller: _amountController, typeColor: typeColor),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    _buildCategoryField(typeColor),
-                    const SizedBox(height: 16),
-                    _buildWalletField(),
-                    const SizedBox(height: 16),
-                    _buildDateField(),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _nameController,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        labelText: 'Keterangan',
-                        hintText: 'contoh: Makan siang, Gaji Maret',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _notesController,
-                      maxLines: 3,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        labelText: 'Catatan',
-                        border: OutlineInputBorder(),
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _save,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: typeColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+      body: SafeArea(
+        top: false,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _AmountField(
+                controller: _amountController,
+                typeColor: typeColor,
+                typeForeground: typeForeground,
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.screenHorizontal,
+                    AppSpacing.md,
+                    AppSpacing.screenHorizontal,
+                    AppSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: AppSpacing.xs),
+                      _buildCategoryField(typeColor),
+                      const SizedBox(height: AppSpacing.md),
+                      _buildWalletField(),
+                      const SizedBox(height: AppSpacing.md),
+                      _buildDateField(),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: _nameController,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(
+                          labelText: 'Keterangan',
+                          hintText: 'contoh: Makan siang, Gaji Maret',
+                          border: OutlineInputBorder(),
                         ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text(
-                                'Simpan',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _notesController,
+                        maxLines: 3,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: const InputDecoration(
+                          labelText: 'Catatan',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      SizedBox(
+                        width: double.infinity,
+                        height: AppComponentHeight.interactive,
+                        child: FilledButton(
+                          onPressed: _isLoading ? null : _save,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: typeForeground,
+                            foregroundColor: typeColor,
+                          ),
+                          child: _isLoading
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: typeForeground,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Simpan',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -297,49 +314,58 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
           'Kategori *',
           style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xxs),
         InkWell(
           onTap: _showCategoryPicker,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: AppRadius.controlBorder,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: showError ? AppColors.error : AppColors.outline,
-              ),
-              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              border: showError
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.error,
+                      width: AppBorder.focusWidth,
+                    )
+                  : null,
+              borderRadius: AppRadius.controlBorder,
             ),
             child: Row(
               children: [
                 if (_selectedCategoryIcon != null) ...[
                   Icon(Icons.category_outlined, size: 20, color: typeColor),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                 ],
                 Expanded(
                   child: Text(
                     _selectedCategoryName ?? 'Pilih Kategori',
                     style: TextStyle(
                       color: _selectedCategoryName != null
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
-                      fontSize: 16,
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.arrow_drop_down,
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ],
             ),
           ),
         ),
         if (showError)
-          const Padding(
-            padding: EdgeInsets.only(top: 4, left: 12),
+          Padding(
+            padding: EdgeInsets.only(top: AppSpacing.xxs, left: AppSpacing.md),
             child: Text(
               'Kategori harus dipilih',
-              style: TextStyle(color: AppColors.error, fontSize: 12),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
+              ),
             ),
           ),
       ],
@@ -353,7 +379,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       error: (e, _) => const Text('Gagal memuat dompet'),
       data: (wallets) {
         return DropdownButtonFormField<String>(
-          value: _selectedWalletId,
+          initialValue: _selectedWalletId,
           isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Dompet *',
@@ -368,21 +394,21 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
                   Icon(
                     _walletIcon(wallet.type),
                     size: 18,
-                    color: AppColors.primary,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       wallet.walletName,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   Text(
                     CurrencyFormatter.formatCompact(wallet.currentBalance),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -404,27 +430,30 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
           'Tanggal *',
           style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xxs),
         InkWell(
           onTap: _pickDate,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: AppRadius.controlBorder,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.outline),
-              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: AppRadius.controlBorder,
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.calendar_today_outlined,
                   size: 18,
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   DateFormatter.formatFullDate(_selectedDate),
-                  style: const TextStyle(fontSize: 16),
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ],
             ),
@@ -452,50 +481,66 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
 class _AmountField extends StatelessWidget {
   final TextEditingController controller;
   final Color typeColor;
+  final Color typeForeground;
 
-  const _AmountField({required this.controller, required this.typeColor});
+  const _AmountField({
+    required this.controller,
+    required this.typeColor,
+    required this.typeForeground,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: typeColor,
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenHorizontal,
+        AppSpacing.md,
+        AppSpacing.screenHorizontal,
+        AppSpacing.lg,
+      ),
       child: TextFormField(
         controller: controller,
         autofocus: true,
         keyboardType: TextInputType.number,
         inputFormatters: [_ThousandSeparatorFormatter()],
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
+          fontWeight: FontWeight.w600,
+          color: typeForeground,
         ),
         textAlign: TextAlign.center,
         decoration: InputDecoration(
+          filled: false,
+          fillColor: Colors.transparent,
           prefixText: 'Rp ',
-          prefixStyle: const TextStyle(
+          prefixStyle: TextStyle(
             fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+            fontWeight: FontWeight.w600,
+            color: typeForeground,
           ),
           enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.black.withOpacity(0.45)),
+            borderSide: BorderSide(
+              color: typeForeground.withValues(alpha: 0.45),
+            ),
           ),
-          focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.black, width: 2),
+          focusedBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: typeForeground, width: 2),
           ),
-          errorBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.black54),
+          errorBorder: UnderlineInputBorder(
+            borderSide: BorderSide(
+              color: typeForeground.withValues(alpha: 0.7),
+            ),
           ),
-          focusedErrorBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.black87, width: 2),
+          focusedErrorBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: typeForeground, width: 2),
           ),
-          errorStyle: const TextStyle(color: Colors.black87),
+          errorStyle: TextStyle(color: typeForeground),
           hintText: '0',
           hintStyle: TextStyle(
-            color: Colors.black.withOpacity(0.65),
+            color: typeForeground.withValues(alpha: 0.65),
             fontSize: 28,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
           ),
         ),
         validator: Validators.validateAmount,
@@ -552,18 +597,18 @@ class _CategoryPickerSheet extends StatelessWidget {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               child: Column(
                 children: [
                   Container(
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.outline,
-                      borderRadius: BorderRadius.circular(2),
+                      color: Theme.of(context).colorScheme.outline,
+                      borderRadius: AppRadius.smallBorder,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
                   const Text(
                     'Pilih Kategori',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -577,60 +622,82 @@ class _CategoryPickerSheet extends StatelessWidget {
                   ? const Center(child: Text('Belum ada kategori'))
                   : GridView.builder(
                       controller: scrollController,
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 4,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
+                            mainAxisSpacing: AppSpacing.sm,
+                            crossAxisSpacing: AppSpacing.sm,
                             childAspectRatio: 0.85,
                           ),
                       itemCount: categories.length,
                       itemBuilder: (context, index) {
                         final category = categories[index];
                         final isSelected = category.categoryId == selectedId;
-                        return GestureDetector(
-                          onTap: () => onSelected(category),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary.withOpacity(0.08)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.outline,
-                                width: isSelected ? 2 : 1,
-                              ),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.category_outlined,
-                                  size: 28,
+                        return Semantics(
+                          button: true,
+                          selected: isSelected,
+                          label: category.categoryName,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => onSelected(category),
+                              borderRadius: AppRadius.controlBorder,
+                              child: Ink(
+                                decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary,
+                                      ? Theme.of(
+                                          context,
+                                        ).colorScheme.primaryContainer
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerLow,
+                                  borderRadius: AppRadius.controlBorder,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  category.categoryName,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : AppColors.textPrimary,
-                                  ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.category_outlined,
+                                      size: AppIconSize.large,
+                                      color: isSelected
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimaryContainer
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(height: AppSpacing.xxs),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.xxs,
+                                      ),
+                                      child: Text(
+                                        category.categoryName,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color: isSelected
+                                                  ? Theme.of(context)
+                                                        .colorScheme
+                                                        .onPrimaryContainer
+                                                  : Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSurface,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w400,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         );

@@ -4,46 +4,40 @@ import '../../core/constants/constants.dart';
 import '../../core/utils/utils.dart';
 import '../../domain/entities/entities.dart';
 
-/// Reusable widget untuk menampilkan satu item transaksi
-/// Digunakan di TransactionListScreen, TransactionDetailScreen, WalletDetailScreen, Dashboard
+/// Reusable flat list row for a transaction.
+///
+/// The row intentionally has no card boundary. Callers can opt into a
+/// divider and compact rhythm when it is used in a grouped history list.
 class TransactionTile extends StatelessWidget {
   final TransactionEntity transaction;
   final VoidCallback? onTap;
   final bool showWalletName;
+  final bool showDivider;
+  final bool dense;
 
   const TransactionTile({
     super.key,
     required this.transaction,
     this.onTap,
     this.showWalletName = true,
+    this.showDivider = false,
+    this.dense = false,
   });
 
-  // Determine color based on transaction type
-  Color _getTypeColor() {
-    return transaction.type == TransactionType.income
-        ? AppColors.income
-        : AppColors.expense;
-  }
-
-  // Parse icon string to IconData (fallback to Icons.category)
+  // Parse icon string to IconData (fallback to Icons.category).
   IconData _getIcon() {
-    // Default category icon
     const defaultIcon = Icons.category_outlined;
 
     if (transaction.categoryIcon == null || transaction.categoryIcon!.isEmpty) {
       return defaultIcon;
     }
 
-    // Try to parse common icon names from Material Icons
-    // Format expected: "Icons.shopping_bag" or just "shopping_bag"
     final iconName = transaction.categoryIcon!
         .replaceAll('Icons.', '')
         .replaceAll('_outlined', '')
         .toLowerCase();
 
-    // Map common transaction category icons
     switch (iconName) {
-      // Income icons
       case 'salary':
       case 'work':
         return Icons.work_outlined;
@@ -58,8 +52,6 @@ class TransactionTile extends StatelessWidget {
         return Icons.assignment_outlined;
       case 'business':
         return Icons.business_outlined;
-
-      // Expense icons
       case 'food':
       case 'restaurant':
         return Icons.restaurant_outlined;
@@ -84,7 +76,6 @@ class TransactionTile extends StatelessWidget {
       case 'communication':
       case 'phone':
         return Icons.phone_outlined;
-
       default:
         return defaultIcon;
     }
@@ -92,64 +83,60 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isIncome = transaction.type == TransactionType.income;
-    final typeColor = _getTypeColor();
-    final title = transaction.name ?? transaction.categoryName ?? 'Transaksi';
     final colorScheme = Theme.of(context).colorScheme;
-
-    // Build subtitle: date [· wallet name]
-    final subtitleParts = [
-      DateFormatter.relative(transaction.transactionDate),
+    final isIncome = transaction.type == TransactionType.income;
+    final typeColor = isIncome
+        ? AppColors.incomeForeground(colorScheme.brightness)
+        : AppColors.expenseForeground(colorScheme.brightness);
+    final title = transaction.name ?? transaction.categoryName ?? 'Transaksi';
+    final metadata = [
+      if (transaction.name != null && transaction.categoryName != null)
+        transaction.categoryName!,
       if (showWalletName && transaction.walletName != null)
         transaction.walletName!,
-    ];
-    final subtitle = subtitleParts.join(' · ');
+      DateFormatter.relative(transaction.transactionDate),
+    ].join(' · ');
+    final amount =
+        '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.amount)}';
+    final verticalPadding = dense ? AppSpacing.sm : AppSpacing.md;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colorScheme.outlineVariant),
-        color: colorScheme.surface,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left accent bar by transaction type
-              Container(width: 4, color: typeColor),
-
-              // Main content
-              Expanded(
+    return Semantics(
+      button: onTap != null,
+      label: '$title, $amount',
+      child: Column(
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: AppRadius.smallBorder,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: dense ? 68 : 76),
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.symmetric(vertical: verticalPadding),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Leading: Icon container (40x40)
-                      Container(
+                      SizedBox(
                         width: 40,
                         height: 40,
-                        decoration: BoxDecoration(
-                          color: typeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: typeColor.withValues(alpha: 0.18),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: typeColor.withValues(alpha: 0.12),
+                            borderRadius: AppRadius.smallBorder,
+                          ),
+                          child: Icon(
+                            _getIcon(),
+                            color: typeColor,
+                            size: AppIconSize.small + 2,
                           ),
                         ),
-                        child: Icon(_getIcon(), color: typeColor, size: 22),
                       ),
-
-                      const SizedBox(width: 12),
-
-                      // Body: Title and subtitle
+                      const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               title,
@@ -158,13 +145,12 @@ class TransactionTile extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: AppSpacing.xxs),
                             Text(
-                              subtitle,
+                              metadata,
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: colorScheme.onSurfaceVariant,
-                                    fontSize: 12,
                                   ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -172,46 +158,38 @@ class TransactionTile extends StatelessWidget {
                           ],
                         ),
                       ),
-
-                      const SizedBox(width: 8),
-
-                      // Trailing: Amount and category name
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.amount)}',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  color: typeColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (transaction.categoryName != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              transaction.categoryName!,
-                              style: Theme.of(context).textTheme.labelSmall
+                      const SizedBox(width: AppSpacing.sm),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: 72,
+                          maxWidth: 136,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              amount,
+                              style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                    fontSize: 11,
+                                    color: typeColor,
+                                    fontWeight: FontWeight.w600,
                                   ),
                               maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+          if (showDivider)
+            Divider(height: 1, indent: 52, color: colorScheme.outlineVariant),
+        ],
       ),
     );
   }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../app/router.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
+import '../../../core/constants/constants.dart';
 import '../../../core/utils/validators.dart';
 import '../../providers/providers.dart';
 
@@ -52,7 +52,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString();
-        print('Login error: $errorMsg');
+        debugPrint('Login error: $errorMsg');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -69,10 +69,101 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _loginWithGoogle() async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await ref
+          .read(supabaseClientProvider)
+          .auth
+          .signInWithOAuth(
+            OAuthProvider.google,
+            redirectTo: AppAuthConfig.googleRedirectUri,
+          );
+
+      // Session dan navigasi diperbarui melalui authStateProvider dan GoRouter
+      // setelah Supabase menerima callback dari deep link Android.
+    } catch (e) {
+      if (mounted) {
+        debugPrint('Google login error: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppStrings.googleLoginError)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    final emailController = TextEditingController(text: _emailCtrl.text.trim());
+    final dialogFormKey = GlobalKey<FormState>();
+
+    final email = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lupa kata sandi?'),
+        content: Form(
+          key: dialogFormKey,
+          child: TextFormField(
+            controller: emailController,
+            keyboardType: TextInputType.emailAddress,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              hintText: 'nama@email.com',
+            ),
+            validator: Validators.validateEmail,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (dialogFormKey.currentState?.validate() ?? false) {
+                Navigator.of(dialogContext).pop(emailController.text.trim());
+              }
+            },
+            child: const Text('Kirim Email'),
+          ),
+        ],
+      ),
+    );
+    emailController.dispose();
+
+    if (email == null || !mounted) return;
+
+    try {
+      await ref
+          .read(settingsRepositoryProvider)
+          .sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Jika email terdaftar, instruksi pemulihan akan dikirimkan.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal mengirim email pemulihan. Coba lagi.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surfaceContainerLowest,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Form(
@@ -82,7 +173,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 // ── HEADER ──────────────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 24, 8, 0),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xxs,
+                    AppSpacing.lg,
+                    AppSpacing.xxs,
+                    0,
+                  ),
                   child: Row(
                     children: [
                       IconButton(
@@ -93,40 +189,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
+                const SizedBox(height: AppSpacing.xl),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenHorizontal,
+                  ),
                   child: Text(
                     'Selamat Datang',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ),
-                const SizedBox(height: 6),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
+                const SizedBox(height: AppSpacing.xxs),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenHorizontal,
+                  ),
                   child: Text(
                     'Masuk untuk melanjutkan',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ),
-                const SizedBox(height: 36),
+                const SizedBox(height: AppSpacing.xxl),
 
                 // ── FORM FIELDS ──────────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenHorizontal,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Email
                       _FieldLabel('Email'),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppSpacing.xxs),
                       TextFormField(
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
@@ -140,11 +235,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         validator: Validators.validateEmail,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpacing.md),
 
                       // Kata Sandi
                       _FieldLabel('Kata Sandi'),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppSpacing.xxs),
                       TextFormField(
                         controller: _passwordCtrl,
                         obscureText: _obscurePassword,
@@ -171,13 +266,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         validator: Validators.validatePassword,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: AppSpacing.xs),
 
                       // Lupa kata sandi
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {},
+                          onPressed: _forgotPassword,
                           child: const Text(
                             'Lupa kata sandi?',
                             style: TextStyle(
@@ -187,31 +282,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: AppSpacing.lg),
 
                       // Tombol Masuk
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
+                        height: AppComponentHeight.interactive,
+                        child: FilledButton(
                           onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: AppColors.primary
-                                .withOpacity(0.6),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
-                          ),
                           child: _isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.white,
+                                    color: colorScheme.onPrimary,
                                   ),
                                 )
                               : const Text(
@@ -223,44 +308,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: AppSpacing.xl),
 
                       // Divider 'atau'
                       Row(
                         children: [
                           const Expanded(child: Divider()),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                            ),
                             child: Text(
                               'atau',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
                           const Expanded(child: Divider()),
                         ],
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpacing.lg),
 
-                      // Google Sign In (placeholder)
+                      // Google OAuth menggunakan Supabase dan deep link Android.
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
+                        height: AppComponentHeight.interactive,
                         child: OutlinedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(
-                            Icons.g_mobiledata,
-                            size: 24,
-                            color: Colors.red,
-                          ),
-                          label: const Text('Lanjutkan dengan Google'),
+                          onPressed: _isLoading ? null : _loginWithGoogle,
+                          icon: const Icon(Icons.g_mobiledata, size: 24),
+                          label: const Text(AppStrings.googleLoginButton),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textPrimary,
-                            side: const BorderSide(color: AppColors.outline),
+                            foregroundColor: colorScheme.onSurface,
+                            side: BorderSide(color: colorScheme.outline),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: AppRadius.controlBorder,
                             ),
                           ),
                         ),
@@ -305,31 +387,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   InputDecoration _inputDecoration({Widget? prefixIcon, Widget? suffixIcon}) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InputDecoration(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: colorScheme.surfaceContainerLow,
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: AppSpacing.controlPadding,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.outline),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.outline),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.outline),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.outlineVariant),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.primary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.error),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.error),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.error, width: 2),
+        borderRadius: AppRadius.controlBorder,
+        borderSide: BorderSide(color: colorScheme.error, width: 2),
       ),
     );
   }

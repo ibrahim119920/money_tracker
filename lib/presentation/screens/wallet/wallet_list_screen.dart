@@ -9,7 +9,7 @@ import '../../providers/providers.dart';
 
 /// List screen untuk menampilkan semua dompet
 class WalletListScreen extends ConsumerWidget {
-  const WalletListScreen({Key? key}) : super(key: key);
+  const WalletListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,67 +17,76 @@ class WalletListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Daftar Dompet')),
-      body: walletsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Gagal memuat dompet: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(walletsProvider),
-                child: const Text('Coba Lagi'),
-              ),
-            ],
+      body: SafeArea(
+        top: false,
+        child: walletsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Gagal memuat dompet: $error'),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton(
+                  onPressed: () => ref.invalidate(walletsProvider),
+                  child: const Text('Coba Lagi'),
+                ),
+              ],
+            ),
           ),
-        ),
-        data: (wallets) {
-          if (wallets.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.account_balance_wallet_outlined,
-                    size: 64,
-                    color: AppColors.textTertiary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Belum ada dompet',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => context.push('/wallets/form', extra: null),
-                    child: const Text('Tambah Dompet Sekarang'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: wallets.length,
-            itemBuilder: (context, index) {
-              final wallet = wallets[index];
-              return WalletListItem(
-                wallet: wallet,
-                onEdit: () {
-                  context.push('/wallets/form', extra: wallet);
-                },
-                onDelete: () {
-                  _deleteWallet(context, ref, wallet);
-                },
-                onTap: () {
-                  context.push('/wallets/detail', extra: wallet);
-                },
+          data: (wallets) {
+            if (wallets.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Belum ada dompet',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    FilledButton(
+                      onPressed: () =>
+                          context.push('/wallets/form', extra: null),
+                      child: const Text('Tambah Dompet Sekarang'),
+                    ),
+                  ],
+                ),
               );
-            },
-          );
-        },
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenHorizontal,
+                AppSpacing.sm,
+                AppSpacing.screenHorizontal,
+                AppSpacing.xl,
+              ),
+              itemCount: wallets.length,
+              itemBuilder: (context, index) {
+                final wallet = wallets[index];
+                return WalletListItem(
+                  wallet: wallet,
+                  onEdit: () {
+                    context.push('/wallets/form', extra: wallet);
+                  },
+                  onDelete: () {
+                    _deleteWallet(context, ref, wallet);
+                  },
+                  onTap: () {
+                    context.push('/wallets/detail', extra: wallet);
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/wallets/form', extra: null),
@@ -106,7 +115,10 @@ class WalletListScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Hapus', style: TextStyle(color: AppColors.error)),
+            child: Text(
+              'Hapus',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       ),
@@ -125,7 +137,7 @@ class WalletListScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Dompet berhasil dihapus'),
-            backgroundColor: AppColors.success,
+            backgroundColor: Theme.of(context).colorScheme.successColor,
           ),
         );
       }
@@ -134,7 +146,7 @@ class WalletListScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal menghapus: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -150,21 +162,21 @@ class WalletListItem extends StatelessWidget {
   final VoidCallback onTap;
 
   const WalletListItem({
-    Key? key,
+    super.key,
     required this.wallet,
     required this.onEdit,
     required this.onDelete,
     required this.onTap,
-  }) : super(key: key);
+  });
 
-  Color _getIconColor(WalletType type) {
+  Color _getIconColor(ColorScheme colorScheme, WalletType type) {
     switch (type) {
       case WalletType.cash:
-        return AppColors.success;
+        return colorScheme.successColor;
       case WalletType.bankAcc:
-        return AppColors.primary;
+        return colorScheme.primary;
       case WalletType.eWallet:
-        return AppColors.transfer;
+        return colorScheme.transferColor;
     }
   }
 
@@ -196,27 +208,37 @@ class WalletListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final iconColor = _getIconColor(colorScheme, wallet.type);
     final balanceColor = wallet.currentBalance >= 0
-        ? AppColors.textPrimary
-        : AppColors.expense;
+        ? colorScheme.onSurface
+        : colorScheme.expenseColor;
 
     return Card(
+      color: colorScheme.surfaceContainerLow,
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: ListTile(
         onTap: onTap,
         leading: Container(
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: _getIconColor(wallet.type).withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
+            color: iconColor.withValues(alpha: 0.14),
+            borderRadius: AppRadius.smallBorder,
           ),
-          child: Icon(_getIcon(wallet.type), color: _getIconColor(wallet.type)),
+          child: Icon(_getIcon(wallet.type), color: iconColor),
         ),
         title: Text(
           wallet.walletName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        subtitle: Text(_getSubtitle()),
+        subtitle: Text(
+          _getSubtitle(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: SizedBox(
           width: 140,
           child: Row(
@@ -229,8 +251,11 @@ class WalletListItem extends StatelessWidget {
                   children: [
                     Text(
                       CurrencyFormatter.format(wallet.currentBalance),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         color: balanceColor,
                       ),
                     ),

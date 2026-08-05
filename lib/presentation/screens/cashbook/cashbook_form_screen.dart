@@ -11,7 +11,7 @@ import '../../providers/providers.dart';
 class CashbookFormScreen extends ConsumerStatefulWidget {
   final CashbookEntity? cashbook;
 
-  const CashbookFormScreen({Key? key, this.cashbook}) : super(key: key);
+  const CashbookFormScreen({super.key, this.cashbook});
 
   @override
   ConsumerState<CashbookFormScreen> createState() => _CashbookFormScreenState();
@@ -109,9 +109,15 @@ class _CashbookFormScreenState extends ConsumerState<CashbookFormScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenHorizontal,
+            AppSpacing.md,
+            AppSpacing.screenHorizontal,
+            AppSpacing.xl,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
@@ -128,21 +134,21 @@ class _CashbookFormScreenState extends ConsumerState<CashbookFormScreen> {
                   validator: (value) =>
                       Validators.validateFieldName(value, 'Nama buku kas'),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.lg),
 
                 // Save Button
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: _isLoading ? null : _saveCashbook,
                     child: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                                Theme.of(context).colorScheme.onPrimary,
                               ),
                             ),
                           )

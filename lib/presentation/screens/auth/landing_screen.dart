@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
-import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/constants.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -45,219 +45,158 @@ class _LandingScreenState extends State<LandingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Column(
-            children: [
-              // ── BAGIAN ATAS ──────────────────────────────────────────────
-              Expanded(
-                flex: 3,
-                child: Stack(
-                  children: [
-                    // Background gradient
-                    Positioned.fill(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [AppColors.primary, AppColors.primaryDark],
-                          ),
-                        ),
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: Column(
+              children: [
+                // ── BAGIAN ATAS ──────────────────────────────────────────────
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(AppRadius.prominent),
                       ),
                     ),
-
-                    // Dekoratif: lingkaran kiri atas
-                    Positioned(
-                      top: -40,
-                      left: -40,
-                      child: Container(
-                        width: 180,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          color: AppColors.lavender.withOpacity(0.18),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-
-                    // Dekoratif: lingkaran kanan tengah
-                    Positioned(
-                      top: 60,
-                      right: -20,
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: AppColors.lime.withOpacity(0.16),
-                          borderRadius: BorderRadius.circular(48),
-                        ),
-                      ),
-                    ),
-
-                    // Dekoratif: lingkaran bawah kiri
-                    Positioned(
-                      bottom: 20,
-                      left: 60,
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.mint.withOpacity(0.20),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-
-                    // Konten tengah
-                    Center(
+                    child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Icon utama
                           Container(
-                            width: 88,
-                            height: 88,
+                            width: 80,
+                            height: 80,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(24),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerLow,
+                              borderRadius: AppRadius.cardBorder,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.account_balance_wallet_rounded,
-                              size: 48,
-                              color: Colors.white,
+                              size: AppIconSize.prominent,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          const Text(
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
                             'Money Tracker',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: -0.5,
-                            ),
+                            style: Theme.of(context).textTheme.displaySmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: AppSpacing.xs),
                           Text(
                             'Catat. Kelola. Kendalikan.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white.withOpacity(0.85),
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
+                                ),
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: AppSpacing.md),
                           Container(
-                            width: 136,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.lime,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
+                            width: 80,
+                            height: AppSpacing.xxs,
+                            color: Theme.of(context).colorScheme.tertiary,
                           ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
 
-              // ── BAGIAN TENGAH ────────────────────────────────────────────
-              Expanded(
-                flex: 2,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                // ── BAGIAN TENGAH ────────────────────────────────────────────
+                Expanded(
+                  flex: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.screenHorizontal,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        _FeatureItem(
+                          icon: Icons.wallet_outlined,
+                          label: 'Multi Dompet & Rekening',
+                          description: 'Kelola semua akunmu dalam satu tempat',
+                          showDivider: true,
+                        ),
+                        _FeatureItem(
+                          icon: Icons.bar_chart_rounded,
+                          label: 'Laporan Bulanan',
+                          description:
+                              'Pantau arus kas dengan grafik yang jelas',
+                          showDivider: true,
+                        ),
+                        _FeatureItem(
+                          icon: Icons.sync_rounded,
+                          label: 'Sinkronisasi Cloud',
+                          description: 'Data aman tersimpan di semua perangkat',
+                          showDivider: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── BAGIAN BAWAH ─────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenHorizontal,
+                    0,
+                    AppSpacing.screenHorizontal,
+                    AppSpacing.xl,
+                  ),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      _FeatureItem(
-                        icon: Icons.wallet_outlined,
-                        label: 'Multi Dompet & Rekening',
-                        description: 'Kelola semua akunmu dalam satu tempat',
-                        showDivider: true,
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        height: AppComponentHeight.interactive,
+                        child: FilledButton(
+                          onPressed: () => context.push(AppRoutes.register),
+                          child: const Text('Mulai Sekarang'),
+                        ),
                       ),
-                      _FeatureItem(
-                        icon: Icons.bar_chart_rounded,
-                        label: 'Laporan Bulanan & Tahunan',
-                        description: 'Pantau arus kas dengan grafik yang jelas',
-                        showDivider: true,
+                      const SizedBox(height: AppSpacing.sm),
+                      SizedBox(
+                        width: double.infinity,
+                        height: AppComponentHeight.interactive,
+                        child: OutlinedButton(
+                          onPressed: () => context.push(AppRoutes.login),
+                          child: const Text(
+                            'Masuk ke Akun',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
-                      _FeatureItem(
-                        icon: Icons.sync_rounded,
-                        label: 'Sinkronisasi Cloud',
-                        description: 'Data aman tersimpan di semua perangkat',
-                        showDivider: false,
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Gratis selamanya · Tanpa iklan',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-
-              // ── BAGIAN BAWAH ─────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () => context.push(AppRoutes.register),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Mulai Sekarang',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: OutlinedButton(
-                        onPressed: () => context.push(AppRoutes.login),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text(
-                          'Masuk ke Akun',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Gratis selamanya · Tanpa iklan',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -286,27 +225,21 @@ class _FeatureItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             children: [
-              Icon(icon, size: 24, color: AppColors.primary),
-              const SizedBox(width: 8),
+              Icon(
+                icon,
+                size: AppIconSize.regular,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
+                    Text(label, style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       description,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -315,7 +248,10 @@ class _FeatureItem extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Divider(height: 1, color: AppColors.outlineVariant),
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
       ],
     );
   }

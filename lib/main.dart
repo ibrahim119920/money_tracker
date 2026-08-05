@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,6 +11,10 @@ import 'presentation/providers/providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Android modern edge-to-edge mode. Individual screens protect their
+  // interactive content with SafeArea/inset-aware scroll padding.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   // Inisialisasi locale data untuk format tanggal Bahasa Indonesia
   await initializeDateFormatting('id_ID', null);
@@ -75,6 +80,17 @@ class MoneyTrackerApp extends ConsumerWidget {
       theme: AppTheme.getLightTheme(),
       darkTheme: AppTheme.getDarkTheme(),
       themeMode: themeMode,
+      builder: (context, child) {
+        final brightness = themeMode == ThemeMode.dark
+            ? Brightness.dark
+            : themeMode == ThemeMode.light
+            ? Brightness.light
+            : MediaQuery.platformBrightnessOf(context);
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: AppTheme.systemUiOverlayStyle(brightness),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       routerDelegate: goRouter.routerDelegate,
       routeInformationParser: goRouter.routeInformationParser,
       routeInformationProvider: goRouter.routeInformationProvider,

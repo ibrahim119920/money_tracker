@@ -87,8 +87,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return AppRoutes.loading;
       }
 
-      // Belum login, akses halaman yang butuh auth → ke landing
-      if (!isLoggedIn && loc == AppRoutes.dashboard) {
+      // Belum login, akses halaman yang butuh auth → ke landing. Semua route
+      // data sekarang dilindungi, bukan hanya dashboard.
+      final isProtectedRoute =
+          loc == AppRoutes.dashboard ||
+          loc.startsWith('/cashbooks') ||
+          loc.startsWith('/wallets') ||
+          loc.startsWith('/transactions') ||
+          loc.startsWith('/transfer') ||
+          loc.startsWith('/report') ||
+          loc.startsWith('/settings');
+      if (!isLoggedIn && isProtectedRoute) {
         return AppRoutes.landing;
       }
 
