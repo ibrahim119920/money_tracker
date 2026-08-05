@@ -54,7 +54,7 @@ class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
     _ref.listen<AsyncValue<AuthState>>(
       authStateProvider,
-      (_, __) => notifyListeners(),
+      (_, _) => notifyListeners(),
     );
   }
 }
@@ -113,19 +113,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.splash,
     routes: [
       // Splash Route (sementara saat auth loading)
-      GoRoute(
-        path: AppRoutes.splash,
-        builder: (_, __) => const _SplashScreen(),
-      ),
+      GoRoute(path: AppRoutes.splash, builder: (_, _) => const _SplashScreen()),
 
       // Loading Route (pre-warm data sebelum masuk Dashboard)
       GoRoute(
         path: AppRoutes.loading,
-        builder: (_, __) => const LoadingScreen(),
+        builder: (_, _) => const LoadingScreen(),
       ),
 
       // Landing Route
-      GoRoute(path: '/landing', builder: (_, __) => const LandingScreen()),
+      GoRoute(path: '/landing', builder: (_, _) => const LandingScreen()),
 
       // Auth Routes
       GoRoute(

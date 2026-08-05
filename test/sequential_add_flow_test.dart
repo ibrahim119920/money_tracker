@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:money_tracker/app/router.dart';
 import 'package:money_tracker/app/theme.dart';
+import 'package:money_tracker/core/utils/validators.dart';
 import 'package:money_tracker/domain/entities/entities.dart';
 import 'package:money_tracker/presentation/providers/providers.dart';
 import 'package:money_tracker/presentation/icons/app_icons.dart';
 import 'package:money_tracker/presentation/screens/transaction/transaction_add_flow_screen.dart';
+import 'package:money_tracker/presentation/screens/transaction/transaction_form_screen.dart';
 import 'package:money_tracker/presentation/screens/transfer/transfer_screen.dart';
 import 'package:money_tracker/presentation/state/sequential_add_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -19,6 +21,16 @@ void main() {
   });
 
   group('money input and typed drafts', () {
+    test('notes validation is optional through exactly 500 characters', () {
+      expect(Validators.validateNotes(null), isNull);
+      expect(Validators.validateNotes(''), isNull);
+      expect(Validators.validateNotes('x' * 500), isNull);
+      expect(
+        Validators.validateNotes('x' * 501),
+        'Catatan maksimal 500 karakter',
+      );
+    });
+
     test('normalizes leading zeros and one-digit backspace to zero', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -189,6 +201,61 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'existing edit notes field uses the shared 500-character contract',
+      (tester) async {
+        final cashbook = _cashbook();
+        final wallet = _wallet('wallet-a', 'Dompet Utama', 500000);
+        final transaction = TransactionEntity(
+          transactionId: 'transaction-1',
+          cashbookId: cashbook.cashbookId,
+          walletId: wallet.walletId,
+          categoryId: 'category-income',
+          type: TransactionType.income,
+          amount: 125000,
+          notes: 'Catatan lama',
+          transactionDate: DateTime(2026, 8, 1),
+          createdAt: DateTime(2026, 8, 1),
+          categoryName: 'Gaji',
+          categoryIcon: 'gaji',
+        );
+
+        await tester.binding.setSurfaceSize(const Size(393, 852));
+        await tester.pumpWidget(
+          ProviderScope(
+            key: UniqueKey(),
+            overrides: [
+              activeCashbookProvider.overrideWith((ref) => cashbook),
+              walletsProvider.overrideWith((ref) => [wallet]),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.getLightTheme(),
+              home: TransactionFormScreen(
+                type: TransactionType.income,
+                transaction: transaction,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final notesField = tester.widget<TextFormField>(
+          find.byType(TextFormField).last,
+        );
+        final notesInput = tester.widget<TextField>(
+          find.byType(TextField).last,
+        );
+        expect(notesInput.maxLength, 500);
+        expect(notesField.validator?.call('x' * 500), isNull);
+        expect(
+          notesField.validator?.call('x' * 501),
+          'Catatan maksimal 500 karakter',
+        );
+
+        await tester.binding.setSurfaceSize(null);
+      },
+    );
   });
 
   testWidgets(

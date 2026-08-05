@@ -285,7 +285,7 @@ class WalletDetailScreen extends ConsumerWidget {
                     padding: EdgeInsets.symmetric(vertical: 32),
                     child: _WalletTransactionsLoading(),
                   ),
-                  error: (_, __) => Padding(
+                  error: (_, _) => Padding(
                     key: const ValueKey('error'),
                     padding: const EdgeInsets.all(16),
                     child: Text(

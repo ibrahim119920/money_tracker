@@ -68,7 +68,7 @@ class _AppInitErrorWidget extends StatelessWidget {
 }
 
 class MoneyTrackerApp extends ConsumerWidget {
-  const MoneyTrackerApp({Key? key}) : super(key: key);
+  const MoneyTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -331,7 +331,7 @@ class TransactionRepository {
   }) async* {
     // 1. Buat identifier unik untuk cache berdasarkan filter yang sedang aktif
     final cacheKey =
-        '${cashbookId}_${type}_${walletId}_${categoryId}_${startDate}_${endDate}';
+        '${cashbookId}_${type}_${walletId}_${categoryId}_${startDate}_$endDate';
 
     // 2. Lempar data cache duluan jika ada (UI langsung tampil tanpa loading)
     if (_transactionCache.containsKey(cacheKey)) {
