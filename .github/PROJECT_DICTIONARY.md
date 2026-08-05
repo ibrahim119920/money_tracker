@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 5, 2026 (Sprint 4.27 - Sequential Transaction Add Flow)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 5, 2026 (Sprint 4.28 - Sequential Date Picker Localization)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -11,6 +11,7 @@
 |---|---|
 | `lib/main.dart` | `MoneyTrackerApp`, `_AppInitErrorWidget`, init: `await initializeDateFormatting('id_ID', null)` ⚠️ diperlukan sebelum `runApp()` |
 | `lib/app/router.dart` | `AppRoutes` (konstanta path), `goRouterProvider`, `_RouterNotifier`, `_SplashScreen` |
+| `lib/app/localization.dart` | `appLocalizationsDelegates`, `appSupportedLocales`, `appDefaultLocale` untuk konfigurasi locale Material/Widgets Bahasa Indonesia |
 | `lib/app/theme.dart` | `AppTheme.getLightTheme()`, `AppTheme.getDarkTheme()` (Material 3 `ColorScheme`, component themes, typography, surface hierarchy, dan system bars) |
 | `lib/core/constants/app_colors.dart` | `AppColors` (palette warm-neutral, semantic compatibility, deterministic wallet/chart palettes, dan extension `MoneyTrackerColorScheme`) |
 | `lib/core/constants/app_auth_config.dart` | `AppAuthConfig.googleRedirectUri` untuk callback OAuth Android |
@@ -747,4 +748,12 @@ Future<void> _createTransaction() async {
 - [x] Tambahkan focused tests, light/dark responsive goldens untuk income/expense/transfer, serta visual QA pada 360/393/412 dp.
 - [x] Sinkronkan `docs/navigation-flow.md`, `docs/feature-modules.md`, `docs/state-management.md`, dan file dictionary ini.
 - [ ] Android device screenshot/E2E submit masih memerlukan backend/session nyata; local validation memakai provider overrides.
+
+### Sprint 4.28 - Sequential Date Picker Localization DONE (August 5, 2026)
+**Items:**
+- [x] Reproduksi kegagalan date picker pada flow transaction dan transfer: `DatePickerDialog` tidak memiliki `MaterialLocalizations`.
+- [x] Tambahkan konfigurasi `flutter_localizations` bersama dengan locale default/supported Bahasa Indonesia dan delegate Material/Widgets.
+- [x] Selaraskan constraint `intl` dengan versi yang dipatok Flutter SDK (`0.20.2`); tidak ada perubahan repository/entity/schema.
+- [x] Tambahkan regression test untuk date control transaction, transfer, dan edit existing; pemilihan tanggal sebelumnya mengubah draft/display dan cancel mempertahankan tanggal.
+- [x] `dart format`, plain `flutter analyze`, full `flutter test`, dan `git diff --check` lulus.
 

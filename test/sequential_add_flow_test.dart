@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:money_tracker/app/localization.dart';
 import 'package:money_tracker/app/router.dart';
 import 'package:money_tracker/app/theme.dart';
-import 'package:money_tracker/core/utils/validators.dart';
+import 'package:money_tracker/core/utils/utils.dart';
 import 'package:money_tracker/domain/entities/entities.dart';
 import 'package:money_tracker/presentation/providers/providers.dart';
 import 'package:money_tracker/presentation/icons/app_icons.dart';
@@ -230,6 +231,9 @@ void main() {
               walletsProvider.overrideWith((ref) => [wallet]),
             ],
             child: MaterialApp(
+              locale: appDefaultLocale,
+              localizationsDelegates: appLocalizationsDelegates,
+              supportedLocales: appSupportedLocales,
               theme: AppTheme.getLightTheme(),
               home: TransactionFormScreen(
                 type: TransactionType.income,
@@ -252,6 +256,15 @@ void main() {
           notesField.validator?.call('x' * 501),
           'Catatan maksimal 500 karakter',
         );
+
+        await tester.tap(
+          find.byKey(const ValueKey('transaction-edit-date-control')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(DatePickerDialog), findsOneWidget);
+        await tester.tap(find.text('Batal'));
+        await tester.pumpAndSettle();
+        expect(find.byType(DatePickerDialog), findsNothing);
 
         await tester.binding.setSurfaceSize(null);
       },
@@ -403,6 +416,138 @@ void main() {
       await tester.binding.setSurfaceSize(null);
     },
   );
+
+  testWidgets('transaction date control opens the Indonesian calendar', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final cashbook = _cashbook();
+    final category = _category(
+      'category-income',
+      'Gaji',
+      TransactionType.income,
+    );
+    final wallet = _wallet('wallet-a', 'Dompet Utama', 500000);
+
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    await tester.pumpWidget(
+      _transactionApp(
+        cashbook: cashbook,
+        categories: [category],
+        wallets: [wallet],
+        type: TransactionType.income,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _advanceTransactionToDate(tester);
+
+    await tester.tap(find.byKey(const ValueKey('transaction-date-control')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TransactionAddFlowScreen)),
+    );
+    final selectedDate = await _selectYesterday(tester);
+    expect(
+      container.read(transactionDraftProvider).transactionDate,
+      selectedDate,
+    );
+    expect(
+      find.text(DateFormatter.formatFullDate(selectedDate)),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('transaction-date-control')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(transactionDraftProvider).transactionDate,
+      selectedDate,
+    );
+    semantics.dispose();
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('transfer date control opens the Indonesian calendar', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final cashbook = _cashbook();
+    final wallets = [
+      _wallet('wallet-a', 'Dompet Asal', 500000),
+      _wallet('wallet-b', 'Dompet Tujuan', 500000),
+    ];
+
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    await tester.pumpWidget(_transferApp(cashbook: cashbook, wallets: wallets));
+    await tester.pumpAndSettle();
+    await _advanceTransferToDate(tester);
+
+    await tester.tap(find.byKey(const ValueKey('transfer-date-control')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TransferScreen)),
+    );
+    final selectedDate = await _selectYesterday(tester);
+    expect(container.read(transferDraftProvider).transferDate, selectedDate);
+    expect(
+      find.text(DateFormatter.formatFullDate(selectedDate)),
+      findsOneWidget,
+    );
+    semantics.dispose();
+    await tester.binding.setSurfaceSize(null);
+  });
+}
+
+Future<void> _advanceTransactionToDate(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('amount-key-1')));
+  await tester.pump();
+  await tester.tap(find.text('Lanjut'));
+  await tester.pumpAndSettle();
+  await tester.tap(
+    find.byKey(const ValueKey('category-option-category-income')),
+  );
+  await tester.pump();
+  await tester.tap(find.text('Lanjut'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('wallet-option-wallet-a')));
+  await tester.pump();
+  await tester.tap(find.text('Lanjut'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _advanceTransferToDate(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('amount-key-1')));
+  await tester.pump();
+  await tester.tap(find.text('Lanjut'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('wallet-option-wallet-a')));
+  await tester.pump();
+  await tester.tap(find.text('Lanjut'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('wallet-option-wallet-b')));
+  await tester.pump();
+  await tester.tap(find.text('Lanjut'));
+  await tester.pumpAndSettle();
+}
+
+Future<DateTime> _selectYesterday(WidgetTester tester) async {
+  final today = dateOnly(DateTime.now());
+  final yesterday = today.subtract(const Duration(days: 1));
+  if (today.month != yesterday.month) {
+    await tester.tap(find.byTooltip('Bulan sebelumnya'));
+    await tester.pumpAndSettle();
+  }
+  await tester.tap(find.text('${yesterday.day}').last);
+  await tester.pump();
+  await tester.tap(find.text('OKE'));
+  await tester.pumpAndSettle();
+  return yesterday;
 }
 
 Widget _transactionApp({
@@ -420,6 +565,9 @@ Widget _transactionApp({
       walletsProvider.overrideWith((ref) => wallets),
     ],
     child: MaterialApp(
+      locale: appDefaultLocale,
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
       theme: AppTheme.getLightTheme(),
       darkTheme: AppTheme.getDarkTheme(),
       themeMode: brightness == Brightness.dark
@@ -442,6 +590,9 @@ Widget _transferApp({
       walletsProvider.overrideWith((ref) => wallets),
     ],
     child: MaterialApp(
+      locale: appDefaultLocale,
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
       theme: AppTheme.getLightTheme(),
       darkTheme: AppTheme.getDarkTheme(),
       themeMode: brightness == Brightness.dark

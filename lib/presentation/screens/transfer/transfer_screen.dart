@@ -525,6 +525,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
             color: colorScheme.surfaceContainerLow,
             borderRadius: AppRadius.cardBorder,
             child: InkWell(
+              key: const ValueKey('transfer-date-control'),
               onTap: _pickDate,
               borderRadius: AppRadius.cardBorder,
               child: ConstrainedBox(

@@ -434,6 +434,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
         ),
         const SizedBox(height: AppSpacing.xxs),
         InkWell(
+          key: const ValueKey('transaction-edit-date-control'),
           onTap: _pickDate,
           borderRadius: AppRadius.controlBorder,
           child: Container(

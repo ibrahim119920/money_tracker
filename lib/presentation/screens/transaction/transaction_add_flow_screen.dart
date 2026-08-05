@@ -555,6 +555,7 @@ class _TransactionAddFlowScreenState
             color: colorScheme.surfaceContainerLow,
             borderRadius: AppRadius.cardBorder,
             child: InkWell(
+              key: const ValueKey('transaction-date-control'),
               onTap: _pickDate,
               borderRadius: AppRadius.cardBorder,
               child: ConstrainedBox(
