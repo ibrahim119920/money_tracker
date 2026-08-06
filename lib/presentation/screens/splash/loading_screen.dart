@@ -37,15 +37,15 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
     _defaultCashbookSubscription = ref
         .listenManual<AsyncValue<CashbookEntity?>>(
           defaultCashbookProvider,
-          (_, __) => _tryNavigate(),
+          (_, _) => _tryNavigate(),
         );
     _cashbooksSubscription = ref.listenManual<AsyncValue<List<CashbookEntity>>>(
       cashbooksProvider,
-      (_, __) => _tryNavigate(),
+      (_, _) => _tryNavigate(),
     );
     _walletsSubscription = ref.listenManual<AsyncValue<List<WalletEntity>>>(
       walletsProvider,
-      (_, __) => _tryNavigate(),
+      (_, _) => _tryNavigate(),
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

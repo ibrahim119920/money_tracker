@@ -36,6 +36,15 @@ These are synchronous; they just wire up dependencies.
 | `activeCashbookProvider` | `StateProvider<CashbookEntity?>` | `null` — auto-set by `defaultCashbookProvider` |
 | `appThemeModeProvider` | `StateNotifierProvider<ThemeModeNotifier, ThemeMode>` | `ThemeMode.system` |
 
+### Tier 3b — Sequential Add Drafts (auto-disposed controller)
+
+| Provider | Type | Notes |
+|---|---|---|
+| `transactionDraftProvider` | `AutoDisposeNotifierProvider<TransactionDraftController, TransactionDraft>` | Typed income/expense draft; integer Rupiah amount, category, wallet, date, notes |
+| `transferDraftProvider` | `AutoDisposeNotifierProvider<TransferDraftController, TransferDraft>` | Typed transfer draft; source/destination conflict is cleared when source changes |
+
+The controllers contain only form state and small mutations. They do not own a `PageController`, `BuildContext`, Supabase client, or animation object; screen-local navigation and controllers remain in the screen state.
+
 ### Tier 4 — Cashbook Data (FutureProvider)
 
 | Provider | Type | Notes |
@@ -68,13 +77,13 @@ These are synchronous; they just wire up dependencies.
 ## State Flow
 
 ```
-User taps "Add Transaction"
+User taps "Add Income" or "Add Expense"
   ↓
-TransactionFormScreen opens
+TransactionAddFlowScreen opens at `/transactions/add/income` or `/transactions/add/expense`
   ↓
-User fills form, taps Save
+User completes amount → category → wallet → date → optional notes
   ↓
-_createTransaction() in screen state:
+`_submit()` re-reads category/wallet data, then calls the existing repository:
   1. repo.createTransaction(...) — await Supabase insert
   2. ref.invalidate(transactionsProvider)    ← list refresh
   3. ref.invalidate(walletsProvider)         ← balance update
@@ -84,6 +93,8 @@ _createTransaction() in screen state:
   ↓
 Riverpod rebuilds all watching widgets automatically
 ```
+
+Transfer uses the same controlled five-step shell with `TransferDraft`, and submits through `createTransfer()` with invalidation of `transfersProvider`, `walletsProvider`, and `totalBalanceProvider`. Transfer history is a separate `/transfer/history` route.
 
 ---
 

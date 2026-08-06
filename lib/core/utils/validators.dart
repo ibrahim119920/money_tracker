@@ -1,4 +1,5 @@
 import '../constants/app_strings.dart';
+import 'money_amount.dart';
 
 /// Form validators untuk Money Tracker
 class Validators {
@@ -79,10 +80,20 @@ class Validators {
       return AppStrings.invalidAmount;
     }
 
-    if (amount <= 0) {
-      return AppStrings.amountMustBePositive;
-    }
+    return validateAmountValue(amount);
+  }
 
+  /// Validates an already-normalized Rupiah amount.
+  ///
+  /// Both the legacy edit form and the sequential add flows use this same
+  /// limit so a value cannot pass client validation and overflow the BIGINT
+  /// column during mutation.
+  static String? validateAmountValue(int? value) {
+    if (value == null) return AppStrings.fieldRequired;
+    if (value <= 0) return AppStrings.amountMustBePositive;
+    if (value > maxMoneyAmount) {
+      return 'Jumlah terlalu besar untuk disimpan';
+    }
     return null;
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'app/localization.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'core/constants/constants.dart';
@@ -68,7 +69,7 @@ class _AppInitErrorWidget extends StatelessWidget {
 }
 
 class MoneyTrackerApp extends ConsumerWidget {
-  const MoneyTrackerApp({Key? key}) : super(key: key);
+  const MoneyTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -77,6 +78,9 @@ class MoneyTrackerApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: AppStrings.appName,
+      locale: appDefaultLocale,
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
       theme: AppTheme.getLightTheme(),
       darkTheme: AppTheme.getDarkTheme(),
       themeMode: themeMode,

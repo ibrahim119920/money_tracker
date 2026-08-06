@@ -123,7 +123,7 @@ class _DashboardAvatar extends ConsumerWidget {
 
     return currentUserAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (user) => Padding(
         padding: const EdgeInsets.only(right: 12),
         child: CircleAvatar(
@@ -187,7 +187,6 @@ class _DashboardBottomNav extends StatelessWidget {
 }
 
 void _showAddTransactionSheet(BuildContext context) {
-  final colorScheme = Theme.of(context).colorScheme;
   final semanticColors = context.semanticColors;
   showModalBottomSheet(
     context: context,
@@ -198,17 +197,6 @@ void _showAddTransactionSheet(BuildContext context) {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: colorScheme.outline,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
@@ -229,10 +217,7 @@ void _showAddTransactionSheet(BuildContext context) {
             subtitle: const Text('Catat uang masuk'),
             onTap: () {
               Navigator.pop(context);
-              context.push(
-                '/transactions/form',
-                extra: {'type': TransactionType.income, 'transaction': null},
-              );
+              context.push('/transactions/add/income');
             },
           ),
           ListTile(
@@ -245,10 +230,7 @@ void _showAddTransactionSheet(BuildContext context) {
             subtitle: const Text('Catat uang keluar'),
             onTap: () {
               Navigator.pop(context);
-              context.push(
-                '/transactions/form',
-                extra: {'type': TransactionType.expense, 'transaction': null},
-              );
+              context.push('/transactions/add/expense');
             },
           ),
           ListTile(
@@ -465,7 +447,7 @@ class _TotalBalanceCard extends ConsumerWidget {
             child: totalBalanceAsync.when(
               loading: () =>
                   const _TotalBalanceLoading(key: ValueKey('loading')),
-              error: (_, __) => Text(
+              error: (_, _) => Text(
                 '—',
                 key: const ValueKey('error'),
                 style: TextStyle(
@@ -538,7 +520,7 @@ class _MonthlySection extends ConsumerWidget {
             child: summaryAsync.when(
               loading: () =>
                   const _MonthlySummaryLoading(key: ValueKey('loading')),
-              error: (_, __) =>
+              error: (_, _) =>
                   const SizedBox(height: 80, key: ValueKey('error')),
               data: (summary) {
                 final income = summary['income'] ?? 0;
@@ -701,7 +683,7 @@ class _WalletSection extends ConsumerWidget {
               padding: AppSpacing.screenPadding,
               child: _WalletLoadingStrip(),
             ),
-            error: (_, __) => Padding(
+            error: (_, _) => Padding(
               key: const ValueKey('error'),
               padding: AppSpacing.screenPadding,
               child: Text(
@@ -801,7 +783,7 @@ class _WalletLoadingStrip extends StatelessWidget {
               horizontal: AppSpacing.screenHorizontal - 4,
             ),
             itemCount: 3,
-            itemBuilder: (_, __) => Padding(
+            itemBuilder: (_, _) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               child: Container(
                 width: cardWidth,

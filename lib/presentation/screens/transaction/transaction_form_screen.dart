@@ -261,7 +261,9 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
                       TextFormField(
                         controller: _notesController,
                         maxLines: 3,
+                        maxLength: 500,
                         textCapitalization: TextCapitalization.sentences,
+                        validator: Validators.validateNotes,
                         decoration: const InputDecoration(
                           labelText: 'Catatan',
                           border: OutlineInputBorder(),
@@ -432,6 +434,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
         ),
         const SizedBox(height: AppSpacing.xxs),
         InkWell(
+          key: const ValueKey('transaction-edit-date-control'),
           onTap: _pickDate,
           borderRadius: AppRadius.controlBorder,
           child: Container(
@@ -451,9 +454,12 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  DateFormatter.formatFullDate(_selectedDate),
-                  style: Theme.of(context).textTheme.bodyLarge,
+                Expanded(
+                  child: Text(
+                    DateFormatter.formatFullDate(_selectedDate),
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
                 ),
               ],
             ),

@@ -277,21 +277,18 @@ class _TypeFilterSegmentedControl extends StatelessWidget {
       _TypeFilterOption(
         label: 'Semua',
         value: null,
-        flex: 4,
         selectedColor: colorScheme.primaryContainer,
         selectedForeground: colorScheme.onPrimaryContainer,
       ),
       _TypeFilterOption(
         label: 'Pemasukan',
         value: 'income',
-        flex: 9,
         selectedColor: colorScheme.incomeContainer,
         selectedForeground: colorScheme.onIncomeColor,
       ),
       _TypeFilterOption(
         label: 'Pengeluaran',
         value: 'expense',
-        flex: 11,
         selectedColor: colorScheme.expenseContainer,
         selectedForeground: colorScheme.onExpenseColor,
       ),
@@ -309,7 +306,6 @@ class _TypeFilterSegmentedControl extends StatelessWidget {
         children: [
           for (final option in options)
             Expanded(
-              flex: option.flex,
               child: _TypeFilterSegment(
                 option: option,
                 isSelected: selectedType == option.value,
@@ -325,14 +321,12 @@ class _TypeFilterSegmentedControl extends StatelessWidget {
 class _TypeFilterOption {
   final String label;
   final String? value;
-  final int flex;
   final Color selectedColor;
   final Color selectedForeground;
 
   const _TypeFilterOption({
     required this.label,
     required this.value,
-    required this.flex,
     required this.selectedColor,
     required this.selectedForeground,
   });
