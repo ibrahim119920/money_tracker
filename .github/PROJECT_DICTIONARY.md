@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 5, 2026 (Sprint 4.28 - Sequential Date Picker Localization)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 6, 2026 (Sprint 4.29 - Presentation Regression Fixes)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -55,6 +55,7 @@
 | lib/presentation/icons/app_icons.dart | AppIcons — matching outlined/rounded navigation pairs, Dashboard actions, transaction and WalletType mappings, normalized category aliases, and deterministic fallbacks; stored keys remain unchanged |
 | test/app_icons_test.dart | Focused mapping, fallback, normalization, determinism, and 18/24/26/30/36 dp token coverage |
 | test/dashboard_icon_system_test.dart | Dashboard light/dark golden, responsive widths 360/393/412, text scale 1.0/1.3, semantics, and direct transaction-action coverage |
+| test/transaction_filter_segmented_control_test.dart | 360 dp equal-width type-filter measurement, overflow safety, selected semantics/colors, and provider-state interaction coverage |
 
 ### Providers
 | File | Provider | Type | Catatan |
@@ -94,12 +95,12 @@
 | `lib/presentation/screens/auth/register_screen.dart` | `RegisterScreen`, `_FieldLabel`, `_StepIndicator`, `_StepItem` | ✅ Lengkap — 4 fields, step indicator, terms checkbox, **auto-create cashbook default saat register** |
 | `lib/presentation/screens/cashbook/cashbook_list_screen.dart` | `CashbookListScreen`, `CashbookListItem` | ✅ |
 | `lib/presentation/screens/cashbook/cashbook_form_screen.dart` | `CashbookFormScreen` | ✅ |
-| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — shape rework: continuous hero, shared summary surface, filled wallet carousel |
+| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — shape rework: continuous hero, shared summary surface, filled wallet carousel; transaction sheet retains the theme-owned drag handle |
 | `lib/presentation/screens/splash/loading_screen.dart` | `LoadingScreen` — pre-warm providers sebelum masuk Dashboard | ✅ — readiness check moved out of build |
 | `lib/presentation/screens/wallet/wallet_list_screen.dart` | `WalletListScreen`, `WalletListItem` | ✅ |
 | `lib/presentation/screens/wallet/wallet_form_screen.dart` | `WalletFormScreen` | ✅ |
 | `lib/presentation/screens/wallet/wallet_detail_screen.dart` | `WalletDetailScreen`, `_walletMonthlySummaryProvider`, `_walletTransactionsProvider` | ✅ — loading summary/transactions use lightweight placeholders |
-| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat transaction rows with grouped date hierarchy; loading uses placeholders |
+| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat transaction rows with grouped date hierarchy; equal-width type segments; loading uses placeholders |
 | `lib/presentation/screens/transaction/transaction_add_flow_screen.dart` | `TransactionAddFlowScreen` | ✅ — sequential income/expense add: amount, category, wallet, date, notes |
 | `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField`, `_CategoryPickerSheet` | ✅ — existing edit form remains at `/transactions/form` |
 | `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ |
@@ -756,4 +757,12 @@ Future<void> _createTransaction() async {
 - [x] Selaraskan constraint `intl` dengan versi yang dipatok Flutter SDK (`0.20.2`); tidak ada perubahan repository/entity/schema.
 - [x] Tambahkan regression test untuk date control transaction, transfer, dan edit existing; pemilihan tanggal sebelumnya mengubah draft/display dan cancel mempertahankan tanggal.
 - [x] `dart format`, plain `flutter analyze`, full `flutter test`, dan `git diff --check` lulus.
+
+### Sprint 4.29 - Presentation Regression Fixes DONE (August 6, 2026)
+**Items:**
+- [x] Hapus hanya drag handle lokal yang redundant dari bottom sheet tambah transaksi Dashboard; `BottomSheetThemeData.showDragHandle: true`, title, tiga aksi, warna, dan routing tetap dipertahankan.
+- [x] Ubah `_TypeFilterSegmentedControl` menjadi tiga segmen equal-width tanpa mengubah provider, nilai filter, selected styling/semantics, target 48 dp, InkWell, atau ellipsis.
+- [x] Tambahkan regression test terfokus pada lebar 360 dp untuk pengukuran equal thirds, label terpanjang, no-layout-exception, tap interaction, dan `transactionFilterProvider` state.
+- [x] Regenerasi serta inspeksi visual golden sheet Dashboard light/dark; hanya dua golden sheet yang berubah dari penghapusan baris redundant.
+- [x] Validasi format, focused tests, plain analyzer, full test suite, dan `git diff --check` dijalankan.
 

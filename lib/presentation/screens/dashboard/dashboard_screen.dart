@@ -187,7 +187,6 @@ class _DashboardBottomNav extends StatelessWidget {
 }
 
 void _showAddTransactionSheet(BuildContext context) {
-  final colorScheme = Theme.of(context).colorScheme;
   final semanticColors = context.semanticColors;
   showModalBottomSheet(
     context: context,
@@ -198,17 +197,6 @@ void _showAddTransactionSheet(BuildContext context) {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: colorScheme.outline,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
