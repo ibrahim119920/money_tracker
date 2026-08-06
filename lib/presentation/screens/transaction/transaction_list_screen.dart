@@ -9,7 +9,9 @@ import '../../providers/providers.dart';
 import '../../widgets/transaction_tile.dart';
 
 class TransactionListScreen extends ConsumerStatefulWidget {
-  const TransactionListScreen({super.key});
+  final bool embedded;
+
+  const TransactionListScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<TransactionListScreen> createState() =>
@@ -108,104 +110,108 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
     final transactionsAsync = ref.watch(transactionListItemsProvider);
     final summaryAsync = ref.watch(monthlySummaryProvider);
 
+    final body = SafeArea(
+      top: false,
+      child: Column(
+        children: [
+          // ── Filter bar ──────────────────────────────────────────────────
+          _FilterBar(
+            selectedType: selectedType,
+            selectedMonth: selectedMonth,
+            onTypeChanged: _onTypeChanged,
+            onMonthTap: _pickMonth,
+            onPreviousMonth: () => _onMonthStep(-1),
+            onNextMonth: () => _onMonthStep(1),
+            canGoNext: !selectedMonth.isAtSameMomentAs(
+              DateTime(DateTime.now().year, DateTime.now().month),
+            ),
+          ),
+
+          // ── Summary bar ─────────────────────────────────────────────────
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: summaryAsync.when(
+              loading: () =>
+                  const _SummaryBarPlaceholder(key: ValueKey('loading')),
+              error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
+              data: (summary) {
+                final income = summary['income'] ?? 0;
+                final expense = summary['expense'] ?? 0;
+                final net = income - expense;
+                return _SummaryBar(
+                  key: ValueKey('$income:$expense:$net'),
+                  income: income,
+                  expense: expense,
+                  net: net,
+                );
+              },
+            ),
+          ),
+
+          // ── Transaction list ─────────────────────────────────────────────
+          Expanded(
+            child: transactionsAsync.when(
+              loading: () => const _TransactionListLoading(),
+              error: (e, _) => Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: colorScheme.error,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Gagal memuat transaksi'),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => ref.invalidate(transactionsProvider),
+                      child: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              ),
+              data: (transactions) {
+                if (transactions.isEmpty) {
+                  return _EmptyState();
+                }
+                return RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.screenHorizontal,
+                      vertical: AppSpacing.xs,
+                    ),
+                    itemCount: transactions.length,
+                    itemBuilder: (context, index) {
+                      final item = transactions[index];
+                      if (item.isHeader) {
+                        return _DateHeader(date: item.date!);
+                      }
+                      return TransactionTile(
+                        transaction: item.transaction!,
+                        dense: true,
+                        showDivider: index < transactions.length - 1,
+                        onTap: () => context.push(
+                          '/transactions/detail',
+                          extra: item.transaction,
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Riwayat Transaksi')),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            // ── Filter bar ──────────────────────────────────────────────────
-            _FilterBar(
-              selectedType: selectedType,
-              selectedMonth: selectedMonth,
-              onTypeChanged: _onTypeChanged,
-              onMonthTap: _pickMonth,
-              onPreviousMonth: () => _onMonthStep(-1),
-              onNextMonth: () => _onMonthStep(1),
-              canGoNext: !selectedMonth.isAtSameMomentAs(
-                DateTime(DateTime.now().year, DateTime.now().month),
-              ),
-            ),
-
-            // ── Summary bar ─────────────────────────────────────────────────
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: summaryAsync.when(
-                loading: () =>
-                    const _SummaryBarPlaceholder(key: ValueKey('loading')),
-                error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
-                data: (summary) {
-                  final income = summary['income'] ?? 0;
-                  final expense = summary['expense'] ?? 0;
-                  final net = income - expense;
-                  return _SummaryBar(
-                    key: ValueKey('$income:$expense:$net'),
-                    income: income,
-                    expense: expense,
-                    net: net,
-                  );
-                },
-              ),
-            ),
-
-            // ── Transaction list ─────────────────────────────────────────────
-            Expanded(
-              child: transactionsAsync.when(
-                loading: () => const _TransactionListLoading(),
-                error: (e, _) => Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 48,
-                        color: colorScheme.error,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text('Gagal memuat transaksi'),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () => ref.invalidate(transactionsProvider),
-                        child: const Text('Coba Lagi'),
-                      ),
-                    ],
-                  ),
-                ),
-                data: (transactions) {
-                  if (transactions.isEmpty) {
-                    return _EmptyState();
-                  }
-                  return RefreshIndicator(
-                    onRefresh: _onRefresh,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.screenHorizontal,
-                        vertical: AppSpacing.xs,
-                      ),
-                      itemCount: transactions.length,
-                      itemBuilder: (context, index) {
-                        final item = transactions[index];
-                        if (item.isHeader) {
-                          return _DateHeader(date: item.date!);
-                        }
-                        return TransactionTile(
-                          transaction: item.transaction!,
-                          dense: true,
-                          showDivider: index < transactions.length - 1,
-                          onTap: () => context.push(
-                            '/transactions/detail',
-                            extra: item.transaction,
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+      body: body,
     );
   }
 }

@@ -8,7 +8,9 @@ import '../../../domain/entities/entities.dart';
 import '../../providers/providers.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  final bool embedded;
+
+  const SettingsScreen({super.key, this.embedded = false});
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -198,36 +200,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final activeCashbook = ref.watch(activeCashbookProvider);
     final themeMode = ref.watch(appThemeModeProvider);
 
+    final body = SafeArea(
+      top: false,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenHorizontal,
+          AppSpacing.md,
+          AppSpacing.screenHorizontal,
+          AppSpacing.xl,
+        ),
+        children: [
+          _buildAccountSection(currentUserAsync),
+          const SizedBox(height: AppSpacing.md),
+          _buildPasswordSection(),
+          const SizedBox(height: AppSpacing.md),
+          _buildAppSection(
+            currentUserAsync: currentUserAsync,
+            cashbooksAsync: cashbooksAsync,
+            activeCashbook: activeCashbook,
+            selectedThemeMode: themeMode,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _buildAboutSection(),
+          const SizedBox(height: AppSpacing.md),
+          _buildLogoutSection(),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+      ),
+    );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.settingsTitle)),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenHorizontal,
-            AppSpacing.md,
-            AppSpacing.screenHorizontal,
-            AppSpacing.xl,
-          ),
-          children: [
-            _buildAccountSection(currentUserAsync),
-            const SizedBox(height: AppSpacing.md),
-            _buildPasswordSection(),
-            const SizedBox(height: AppSpacing.md),
-            _buildAppSection(
-              currentUserAsync: currentUserAsync,
-              cashbooksAsync: cashbooksAsync,
-              activeCashbook: activeCashbook,
-              selectedThemeMode: themeMode,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _buildAboutSection(),
-            const SizedBox(height: AppSpacing.md),
-            _buildLogoutSection(),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
-      ),
+      body: body,
     );
   }
 

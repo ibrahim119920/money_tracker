@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 3, 2026 (Sprint 4.26 - Icon Foundation and Dashboard)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 6, 2026 (Sprint 4.27 - Bottom Navigation Rework)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -90,17 +90,17 @@
 | `lib/presentation/screens/auth/register_screen.dart` | `RegisterScreen`, `_FieldLabel`, `_StepIndicator`, `_StepItem` | ✅ Lengkap — 4 fields, step indicator, terms checkbox, **auto-create cashbook default saat register** |
 | `lib/presentation/screens/cashbook/cashbook_list_screen.dart` | `CashbookListScreen`, `CashbookListItem` | ✅ |
 | `lib/presentation/screens/cashbook/cashbook_form_screen.dart` | `CashbookFormScreen` | ✅ |
-| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — shape rework: continuous hero, shared summary surface, filled wallet carousel |
+| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_DashboardScaffold`, `_DashboardBottomNav`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — persistent four-tab shell; tab bodies switch in place and retain standalone deep-link routes |
 | `lib/presentation/screens/splash/loading_screen.dart` | `LoadingScreen` — pre-warm providers sebelum masuk Dashboard | ✅ — readiness check moved out of build |
 | `lib/presentation/screens/wallet/wallet_list_screen.dart` | `WalletListScreen`, `WalletListItem` | ✅ |
 | `lib/presentation/screens/wallet/wallet_form_screen.dart` | `WalletFormScreen` | ✅ |
 | `lib/presentation/screens/wallet/wallet_detail_screen.dart` | `WalletDetailScreen`, `_walletMonthlySummaryProvider`, `_walletTransactionsProvider` | ✅ — loading summary/transactions use lightweight placeholders |
-| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat transaction rows with grouped date hierarchy; loading uses placeholders |
+| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat transaction rows with grouped date hierarchy; supports standalone route and embedded dashboard tab |
 | `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField`, `_CategoryPickerSheet` | ✅ |
 | `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ |
 | `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen`, `_WalletDropdownItem`, `_ThousandSeparatorFormatter` | ✅ |
-| `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_ReportSummarySurface`, `_PieChartSection`, `_ReportTypeSegmentedControl`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ — tonal grouped surfaces, compact navigation, semantic chart controls |
-| `lib/presentation/screens/settings/settings_screen.dart` | `SettingsScreen` | ✅ P0 — profile, password, theme mode, default cashbook, about, logout |
+| `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_ReportSummarySurface`, `_PieChartSection`, `_ReportTypeSegmentedControl`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ — tonal grouped surfaces, compact navigation, semantic chart controls; supports standalone route and embedded dashboard tab |
+| `lib/presentation/screens/settings/settings_screen.dart` | `SettingsScreen` | ✅ P0 — profile, password, theme mode, default cashbook, about, logout; supports standalone route and embedded dashboard tab |
 
 ### Widgets
 | File | Class | Catatan |
@@ -119,7 +119,7 @@
 | `AppRoutes.landing` | `/landing` | `LandingScreen` | Entry publik (belum login), fade+slide anim |
 | `AppRoutes.login` | `/login` | `LoginScreen` | Back button → `/landing` |
 | `AppRoutes.register` | `/register` | `RegisterScreen` | Back button → `/landing` |
-| `AppRoutes.dashboard` | `/dashboard` | `DashboardScreen` | Protected route |
+| `AppRoutes.dashboard` | `/dashboard` | `DashboardScreen` | Protected route; owns in-place Dashboard/Transaksi/Laporan/Pengaturan tab shell |
 | `AppRoutes.cashbooks` | `/cashbooks` | `CashbookListScreen` | |
 | `AppRoutes.cashbookForm` | `/cashbooks/form` | `CashbookFormScreen` | |
 | `AppRoutes.wallets` | `/wallets` | `WalletListScreen` | |
@@ -132,7 +132,7 @@
 | `AppRoutes.monthlyReport` | `/report/monthly` | `MonthlyReportScreen` | Month picker, summary cards, pie chart, bar chart |
 | `AppRoutes.settings` | `/settings` | `SettingsScreen` | Profil, app settings, logout |
 
-**Navigasi:** `context.go(AppRoutes.xxx)` atau `context.push(AppRoutes.xxx, extra: entity)`
+**Navigasi:** `context.go(AppRoutes.xxx)` atau `context.push(AppRoutes.xxx, extra: entity)` untuk page/deep-link flows. Tab dashboard memakai local selected-index state dan tidak mendorong route.
 
 ---
 
@@ -154,7 +154,7 @@
 | Fitur | Status | Catatan |
 |---|---|---|
 | **Auth (Landing/Login/Register)** | **✅ Lengkap** | Landing screen + anim, sign in/up, email verification handling, explicit redirect ke dashboard |
-| **Dashboard + Transaction List** | **✅ Lengkap** | Total balance, monthly summary, wallet carousel, add transaction FAB, filter by type/month |
+| **Dashboard + Transaction List** | **✅ Lengkap** | Four in-place dashboard tabs (Dashboard, Transaksi, Laporan, Pengaturan), total balance, monthly summary, wallet carousel, add transaction FAB, filter by type/month |
 | Cashbook CRUD | ✅ Lengkap | |
 | Wallet CRUD + Detail | ✅ Lengkap | |
 | Transaksi CRUD + Detail | ✅ Lengkap | |
@@ -719,4 +719,12 @@ Future<void> _createTransaction() async {
 - [x] Tambahkan focused tests dan real-glyph light/dark goldens; validasi widths 360/393/412, text scale 1.0/1.3, mapping/fallback, semantics, dan full test suite lulus.
 - [x] dart format dijalankan pada file Dart milik fase ini; flutter analyze tidak menemukan error/warning (16 info lama tetap ada); git diff --check lulus.
 - [ ] Transaction History, Report, Forms, Settings, Auth, dan wallet screens tetap deferred ke fase berikutnya.
+
+### Sprint 4.27 - Bottom Navigation Rework DONE (August 6, 2026)
+**Items:**
+- [x] Rework Dashboard menjadi shell empat tab lokal: Dashboard, Transaksi, Laporan, dan Pengaturan; perubahan tab mengganti konten di tempat tanpa `context.push`.
+- [x] Tambahkan mode embedded pada TransactionListScreen, MonthlyReportScreen, dan SettingsScreen; constructor default tetap menjadi halaman standalone untuk deep link lama.
+- [x] Pertahankan route protected `/transactions`, `/report/monthly`, dan `/settings`, auth redirect, provider, repository, onboarding dashboard, serta flow form/detail/transfer.
+- [x] Tambahkan regression coverage untuk selected index/in-place tab switching dan registrasi nama route legacy.
+- [x] `dart format` dan `flutter test` lulus; analyzer menghasilkan 16 info-level lint lama tanpa error atau warning baru.
 
