@@ -245,6 +245,83 @@ class TransferEntity {
       'TransferEntity(transferId: $transferId, from: $fromWalletName, to: $toWalletName, amount: $amount)';
 }
 
+/// Minimal transaction data used to calculate a date-based balance projection.
+class FutureTransactionImpact {
+  final DateTime transactionDate;
+  final TransactionType type;
+  final int amount;
+
+  const FutureTransactionImpact({
+    required this.transactionDate,
+    required this.type,
+    required this.amount,
+  });
+}
+
+/// Balance values derived from future income and expense transaction dates.
+///
+/// Wallet balances contain the effect of scheduled transactions because the
+/// database trigger updates them at write time. This value removes those
+/// future effects to show the real balance today, then adds only the rest of
+/// the current month's scheduled net movement for an end-of-month projection.
+class FutureTransactionProjection {
+  final int currentBalance;
+  final int endOfCurrentMonthBalance;
+  final int futureNet;
+  final int currentMonthFutureNet;
+  final int futureTransactionCount;
+
+  const FutureTransactionProjection({
+    required this.currentBalance,
+    required this.endOfCurrentMonthBalance,
+    required this.futureNet,
+    required this.currentMonthFutureNet,
+    required this.futureTransactionCount,
+  });
+
+  bool get hasFutureTransactions => futureTransactionCount != 0;
+
+  factory FutureTransactionProjection.fromFutureTransactions({
+    required int storedWalletTotal,
+    required Iterable<FutureTransactionImpact> transactions,
+    DateTime? today,
+  }) {
+    final reference = today ?? DateTime.now();
+    final localToday = DateTime(reference.year, reference.month, reference.day);
+    final currentMonthEnd = DateTime(reference.year, reference.month + 1, 0);
+    var futureNet = 0;
+    var currentMonthFutureNet = 0;
+    var futureTransactionCount = 0;
+
+    for (final transaction in transactions) {
+      final date = DateTime(
+        transaction.transactionDate.year,
+        transaction.transactionDate.month,
+        transaction.transactionDate.day,
+      );
+      if (!date.isAfter(localToday)) continue;
+
+      final net = transaction.type == TransactionType.income
+          ? transaction.amount
+          : -transaction.amount;
+      futureTransactionCount += 1;
+      futureNet += net;
+      if (!date.isAfter(currentMonthEnd)) {
+        currentMonthFutureNet += net;
+      }
+    }
+
+    final currentBalance = storedWalletTotal - futureNet;
+    return FutureTransactionProjection(
+      currentBalance: currentBalance,
+      endOfCurrentMonthBalance: currentBalance + currentMonthFutureNet,
+      futureNet: futureNet,
+      currentMonthFutureNet: currentMonthFutureNet,
+      futureTransactionCount: futureTransactionCount,
+    );
+  }
+}
+
 /// Recurring Transaction Entity - Transaksi berulang
 class RecurringTransactionEntity {
   final String recurringId;

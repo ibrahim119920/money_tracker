@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/constants.dart';
 import '../../../core/utils/utils.dart';
 import '../../../domain/entities/entities.dart';
+import '../../icons/app_icons.dart';
 import '../../providers/providers.dart';
+import '../../widgets/transaction_tile.dart';
 
 class TransactionDetailScreen extends ConsumerWidget {
   final TransactionEntity transaction;
@@ -24,6 +26,9 @@ class TransactionDetailScreen extends ConsumerWidget {
         detailTransaction.notes != null &&
         detailTransaction.notes!.isNotEmpty &&
         detailTransaction.notes != description;
+    final isFuture = DateFormatter.isFutureDate(
+      detailTransaction.transactionDate,
+    );
 
     final isIncome = detailTransaction.type == TransactionType.income;
     final heroBackground = isIncome
@@ -103,6 +108,10 @@ class TransactionDetailScreen extends ConsumerWidget {
                         fontWeight: FontWeight.normal,
                       ),
                     ),
+                    if (isFuture) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      const FutureTransactionBadge(),
+                    ],
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       DateFormatter.formatFullDate(
@@ -130,7 +139,9 @@ class TransactionDetailScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       _DetailRow(
-                        icon: Icons.category_outlined,
+                        icon: AppIcons.forCategory(
+                          detailTransaction.categoryIcon,
+                        ),
                         label: 'Kategori',
                         value: detailTransaction.categoryName ?? '-',
                       ),
@@ -143,7 +154,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                       const Divider(height: 1, indent: 56),
                       _DetailRow(
                         icon: Icons.calendar_today,
-                        label: 'Tanggal',
+                        label: isFuture ? 'Tanggal (terjadwal)' : 'Tanggal',
                         value: DateFormatter.formatFullDate(
                           detailTransaction.transactionDate,
                         ),
@@ -226,6 +237,8 @@ class TransactionDetailScreen extends ConsumerWidget {
           ref.invalidate(walletsProvider);
           ref.invalidate(totalBalanceProvider);
           ref.invalidate(monthlySummaryProvider);
+          ref.invalidate(futureTransactionProjectionProvider);
+          ref.invalidate(cashbookBalanceProvider(transaction.cashbookId));
 
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

@@ -115,7 +115,7 @@ class CashbookRepository {
 
       return _sumIntField(wallets as List<dynamic>, 'current_balance');
     } catch (e) {
-      return 0;
+      throw Exception('Gagal menghitung saldo buku kas');
     }
   }
 
@@ -320,6 +320,56 @@ class TransactionRepository {
 
   TransactionRepository(this._client);
 
+  /// Get system categories together with categories owned by [cashbookId].
+  Future<List<CategoryEntity>> getCategories(String cashbookId) async {
+    try {
+      final data = await _client
+          .from('categories')
+          .select()
+          .or('cashbook_id.is.null,cashbook_id.eq.$cashbookId')
+          .order('sort_order', ascending: true);
+
+      return (data as List)
+          .map(
+            (row) => CategoryModel.fromJson(
+              Map<String, dynamic>.from(row as Map),
+            ).toEntity(),
+          )
+          .toList();
+    } catch (e) {
+      throw Exception('Gagal mengambil kategori');
+    }
+  }
+
+  /// Creates a category in the active cashbook and returns its database ID.
+  Future<CategoryEntity> createCategory({
+    required String cashbookId,
+    required TransactionType type,
+    required String categoryName,
+    required String icon,
+    required String color,
+  }) async {
+    try {
+      final data = await _client
+          .from('categories')
+          .insert({
+            'cashbook_id': cashbookId,
+            'type': type.value,
+            'category_name': categoryName,
+            'icon': icon,
+            'color': color,
+            'is_system': false,
+            'sort_order': 999,
+          })
+          .select()
+          .single();
+
+      return CategoryModel.fromJson(Map<String, dynamic>.from(data)).toEntity();
+    } catch (e) {
+      throw Exception('Gagal menambahkan kategori');
+    }
+  }
+
   /// Get daftar transaksi dengan pendekatan Cache-First (Stale-While-Revalidate)
   Stream<List<TransactionEntity>> getTransactionsStream({
     required String cashbookId,
@@ -498,6 +548,17 @@ class TransactionRepository {
     if (amount <= 0) {
       throw Exception('Jumlah transfer harus lebih dari 0');
     }
+    final localToday = DateTime.now();
+    final transferDay = DateTime(
+      transferDate.year,
+      transferDate.month,
+      transferDate.day,
+    );
+    if (transferDay.isAfter(
+      DateTime(localToday.year, localToday.month, localToday.day),
+    )) {
+      throw Exception('Tanggal transfer tidak boleh di masa depan');
+    }
 
     try {
       final fromWallet = await _client
@@ -540,15 +601,25 @@ class TransactionRepository {
   }
 
   /// Get daftar transfer per cashbook
-  Future<List<TransferEntity>> getTransfersByCashbook(String cashbookId) async {
+  Future<List<TransferEntity>> getTransfersByCashbook(
+    String cashbookId, {
+    DateTime? month,
+  }) async {
     try {
-      final data = await _client
+      var query = _client
           .from('transfers')
           .select(
             '*, from_wallet:from_wallet_id(wallet_name), to_wallet:to_wallet_id(wallet_name)',
           )
-          .eq('cashbook_id', cashbookId)
-          .order('transfer_date', ascending: false);
+          .eq('cashbook_id', cashbookId);
+
+      if (month != null) {
+        query = query
+            .gte('transfer_date', _dateOnly(_monthStart(month)))
+            .lte('transfer_date', _dateOnly(_monthEnd(month)));
+      }
+
+      final data = await query.order('transfer_date', ascending: false);
 
       return (data as List).map((row) {
         final transferJson = Map<String, dynamic>.from(row);
@@ -561,6 +632,66 @@ class TransactionRepository {
       }).toList();
     } catch (e) {
       throw Exception('Gagal mengambil transfer: $e');
+    }
+  }
+
+  /// Derives the actual current balance and current-month projection from
+  /// scheduled income/expense records without adding a schema column.
+  Future<FutureTransactionProjection> getFutureTransactionProjection({
+    required String cashbookId,
+    DateTime? today,
+  }) async {
+    try {
+      final reference = today ?? DateTime.now();
+      final localToday = DateTime(
+        reference.year,
+        reference.month,
+        reference.day,
+      );
+      final firstFutureDay = localToday.add(const Duration(days: 1));
+
+      final wallets = await _client
+          .from('wallets')
+          .select('current_balance')
+          .eq('cashbook_id', cashbookId)
+          .eq('is_active', true);
+      final storedWalletTotal = _sumIntField(
+        wallets as List<dynamic>,
+        'current_balance',
+      );
+
+      final transactions = await _client
+          .from('transactions')
+          .select('type, amount, transaction_date')
+          .eq('cashbook_id', cashbookId)
+          .eq('is_deleted', false)
+          .gte('transaction_date', _dateOnly(firstFutureDay));
+
+      final impacts = <FutureTransactionImpact>[];
+      for (final row in transactions as List) {
+        final data = Map<String, dynamic>.from(row as Map);
+        final type = TransactionType.fromString(data['type'] as String? ?? '');
+        final amount = data['amount'];
+        final transactionDate = data['transaction_date'];
+        if (type == null || amount is! int || transactionDate is! String) {
+          continue;
+        }
+        impacts.add(
+          FutureTransactionImpact(
+            transactionDate: DateTime.parse(transactionDate),
+            type: type,
+            amount: amount,
+          ),
+        );
+      }
+
+      return FutureTransactionProjection.fromFutureTransactions(
+        storedWalletTotal: storedWalletTotal,
+        transactions: impacts,
+        today: localToday,
+      );
+    } catch (e) {
+      throw Exception('Gagal menghitung proyeksi saldo');
     }
   }
 

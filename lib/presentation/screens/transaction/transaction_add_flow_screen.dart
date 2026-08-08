@@ -105,7 +105,8 @@ class _TransactionAddFlowScreenState
             ) ??
             false;
       case 3:
-        return Validators.validatePastDate(draft.transactionDate) == null;
+        return Validators.validateTransactionDate(draft.transactionDate) ==
+            null;
       case 4:
         return Validators.validateNotes(draft.notes) == null;
       default:
@@ -152,7 +153,7 @@ class _TransactionAddFlowScreenState
       context: context,
       initialDate: draft.transactionDate,
       firstDate: DateTime(2000),
-      lastDate: today,
+      lastDate: DateTime(today.year + 100),
       locale: const Locale('id', 'ID'),
     );
     if (picked != null && mounted) {
@@ -203,6 +204,8 @@ class _TransactionAddFlowScreenState
       ref.invalidate(walletsProvider);
       ref.invalidate(totalBalanceProvider);
       ref.invalidate(monthlySummaryProvider);
+      ref.invalidate(futureTransactionProjectionProvider);
+      ref.invalidate(cashbookBalanceProvider(cashbook.cashbookId));
 
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
@@ -273,7 +276,7 @@ class _TransactionAddFlowScreenState
       0 => 'Gunakan keypad untuk memasukkan nominal Rupiah.',
       1 => 'Pilih kategori yang paling sesuai.',
       2 => 'Tentukan dompet tempat transaksi ini dicatat.',
-      3 => 'Tanggal otomatis diisi hari ini.',
+      3 => 'Tanggal dapat dijadwalkan untuk hari mendatang.',
       _ => 'Catatan bersifat opsional dan boleh dilewati.',
     };
     final canContinue = _canContinue(draft, categoriesAsync, walletsAsync);
@@ -388,6 +391,28 @@ class _TransactionAddFlowScreenState
     );
   }
 
+  Future<void> _openCategoryPicker(String? selectedCategoryId) async {
+    final cashbook = ref.read(activeCashbookProvider);
+    if (cashbook == null) return;
+    final category = await showModalBottomSheet<CategoryEntity>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppRadius.prominentTopBorder,
+      ),
+      builder: (_) => CategoryPickerSheet(
+        cashbookId: cashbook.cashbookId,
+        type: widget.type,
+        selectedId: selectedCategoryId,
+      ),
+    );
+    if (category != null && mounted) {
+      ref
+          .read(transactionDraftProvider.notifier)
+          .setCategory(category.categoryId);
+    }
+  }
+
   Widget _buildCategoryStep(AsyncValue<List<CategoryEntity>> categoriesAsync) {
     final draft = ref.watch(transactionDraftProvider);
     return SelectionStepShell(
@@ -413,40 +438,60 @@ class _TransactionAddFlowScreenState
               .where((category) => category.type == widget.type)
               .toList();
           if (categories.isEmpty) {
-            return const SelectionStatePanel(
+            return SelectionStatePanel(
               icon: Icons.category_outlined,
               title: 'Belum ada kategori',
               message: 'Kategori untuk tipe transaksi ini belum tersedia.',
+              actionLabel: 'Tambah kategori',
+              onAction: () => _openCategoryPicker(draft.categoryId),
             );
           }
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 280 ? 3 : 2;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  mainAxisSpacing: AppSpacing.sm,
-                  crossAxisSpacing: AppSpacing.sm,
-                  mainAxisExtent: 112,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  key: const ValueKey('transaction-add-category-action'),
+                  onPressed: () => _openCategoryPicker(draft.categoryId),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Tambah kategori'),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, AppComponentHeight.interactive),
+                  ),
                 ),
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  final category = categories[index];
-                  return CategoryOptionTile(
-                    key: ValueKey('category-option-${category.categoryId}'),
-                    category: category,
-                    selected: category.categoryId == draft.categoryId,
-                    onTap: () {
-                      ref
-                          .read(transactionDraftProvider.notifier)
-                          .setCategory(category.categoryId);
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 280 ? 3 : 2;
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      mainAxisSpacing: AppSpacing.sm,
+                      crossAxisSpacing: AppSpacing.sm,
+                      mainAxisExtent: 124,
+                    ),
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      return CategoryOptionTile(
+                        key: ValueKey('category-option-${category.categoryId}'),
+                        category: category,
+                        selected: category.categoryId == draft.categoryId,
+                        onTap: () {
+                          ref
+                              .read(transactionDraftProvider.notifier)
+                              .setCategory(category.categoryId);
+                        },
+                      );
                     },
                   );
                 },
-              );
-            },
+              ),
+            ],
           );
         },
       ),
@@ -541,7 +586,7 @@ class _TransactionAddFlowScreenState
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Tanggal otomatis diisi hari ini dan tidak boleh melewati hari ini.',
+          'Tanggal otomatis diisi hari ini dan dapat dijadwalkan untuk hari mendatang.',
           style: Theme.of(
             context,
           ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),

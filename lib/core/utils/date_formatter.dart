@@ -90,6 +90,21 @@ class DateFormatter {
         date1.day == date2.day;
   }
 
+  /// Returns whether [date] is after the local calendar day of [relativeTo].
+  ///
+  /// Transaction dates are stored as dates rather than timestamps, so future
+  /// scheduling must not depend on the current clock time.
+  static bool isFutureDate(DateTime date, {DateTime? relativeTo}) {
+    final comparisonDate = relativeTo ?? DateTime.now();
+    final calendarDate = DateTime(date.year, date.month, date.day);
+    final calendarComparison = DateTime(
+      comparisonDate.year,
+      comparisonDate.month,
+      comparisonDate.day,
+    );
+    return calendarDate.isAfter(calendarComparison);
+  }
+
   /// Check apakah tanggal hari ini
   static bool isToday(DateTime date) {
     return isSameDay(date, DateTime.now());

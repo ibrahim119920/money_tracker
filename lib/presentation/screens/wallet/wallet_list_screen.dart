@@ -132,6 +132,8 @@ class WalletListScreen extends ConsumerWidget {
 
       ref.invalidate(walletsProvider);
       ref.invalidate(totalBalanceProvider);
+      ref.invalidate(futureTransactionProjectionProvider);
+      ref.invalidate(cashbookBalanceProvider(wallet.cashbookId));
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

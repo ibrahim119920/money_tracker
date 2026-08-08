@@ -228,10 +228,7 @@ class CashbookListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final balanceAsync = ref.watch(
-      FutureProvider<int>((ref) async {
-        final repository = ref.watch(cashbookRepositoryProvider);
-        return repository.getTotalBalance(cashbook.cashbookId);
-      }),
+      cashbookBalanceProvider(cashbook.cashbookId),
     );
 
     final colorScheme = Theme.of(context).colorScheme;
@@ -269,7 +266,7 @@ class CashbookListItem extends ConsumerWidget {
         ),
         subtitle: balanceAsync.when(
           loading: () => const Text('Menghitung...'),
-          error: (_, _) => const Text('Saldo -'),
+          error: (_, _) => const Text('Saldo tidak tersedia'),
           data: (balance) => Text(
             '${AppStrings.currentBalance} ${CurrencyFormatter.format(balance)}',
           ),

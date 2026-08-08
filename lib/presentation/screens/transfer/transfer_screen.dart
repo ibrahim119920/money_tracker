@@ -191,6 +191,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
           );
 
       ref.invalidate(transfersProvider);
+      ref.invalidate(selectedMonthTransfersProvider);
       ref.invalidate(walletsProvider);
       ref.invalidate(totalBalanceProvider);
 

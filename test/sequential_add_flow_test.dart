@@ -93,6 +93,56 @@ void main() {
     );
 
     test(
+      'income and expense drafts accept tomorrow while transfers do not',
+      () {
+        final transactionContainer = ProviderContainer();
+        final transferContainer = ProviderContainer();
+        addTearDown(transactionContainer.dispose);
+        addTearDown(transferContainer.dispose);
+        final transactionKeepAlive = transactionContainer.listen(
+          transactionDraftProvider,
+          (_, _) {},
+        );
+        final transferKeepAlive = transferContainer.listen(
+          transferDraftProvider,
+          (_, _) {},
+        );
+        addTearDown(transactionKeepAlive.close);
+        addTearDown(transferKeepAlive.close);
+        final tomorrow = dateOnly(DateTime.now().add(const Duration(days: 1)));
+
+        final transactionController = transactionContainer.read(
+          transactionDraftProvider.notifier,
+        );
+        transactionController.setAmount(125000);
+        transactionController.setCategory('category-1');
+        transactionController.setWallet('wallet-1');
+        transactionController.setDate(tomorrow);
+        expect(
+          transactionContainer.read(transactionDraftProvider).transactionDate,
+          tomorrow,
+        );
+        expect(
+          transactionContainer.read(transactionDraftProvider).canSubmit,
+          isTrue,
+        );
+
+        final transferController = transferContainer.read(
+          transferDraftProvider.notifier,
+        );
+        transferController.setDate(tomorrow);
+        expect(
+          transferContainer.read(transferDraftProvider).transferDate,
+          isNot(tomorrow),
+        );
+        expect(
+          Validators.validatePastDate(tomorrow),
+          'Tanggal tidak boleh di masa depan',
+        );
+      },
+    );
+
+    test(
       'transfer draft clears conflicting destination when source changes',
       () {
         final container = ProviderContainer();

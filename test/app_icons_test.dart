@@ -60,12 +60,18 @@ void main() {
         Icons.shopping_bag_rounded,
       );
       expect(AppIcons.forCategory('komunikasi'), Icons.cell_tower_rounded);
+      expect(AppIcons.forCategory('DONASI'), Icons.volunteer_activism_rounded);
+      expect(AppIcons.forCategory('bensin'), Icons.local_gas_station_rounded);
+      expect(
+        AppIcons.forCategory('Kebutuhan Harian'),
+        Icons.shopping_bag_rounded,
+      );
+      expect(AppIcons.forCategory('langganan'), Icons.subscriptions_rounded);
     });
 
     test('returns a deterministic fallback for unsupported category keys', () {
       expect(AppIcons.forCategory(null), AppIcons.categoryFallback);
       expect(AppIcons.forCategory(''), AppIcons.categoryFallback);
-      expect(AppIcons.forCategory('donasi'), AppIcons.categoryFallback);
       expect(AppIcons.forCategory('unknown-key'), AppIcons.categoryFallback);
     });
 

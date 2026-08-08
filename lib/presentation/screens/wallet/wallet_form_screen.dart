@@ -87,6 +87,9 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
 
     try {
       final walletRepository = ref.read(walletRepositoryProvider);
+      final activeCashbook = ref.read(activeCashbookProvider);
+      final affectedCashbookId =
+          widget.wallet?.cashbookId ?? activeCashbook?.cashbookId;
       final walletName = _walletNameCtrl.text.trim();
       final bankName = _bankNameCtrl.text.trim();
       final accountNumber = _accountNumberCtrl.text.trim();
@@ -95,7 +98,6 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
 
       if (widget.wallet == null) {
         // Mode TAMBAH
-        final activeCashbook = ref.read(activeCashbookProvider);
         if (activeCashbook == null) {
           throw Exception('Tentukan buku kas terlebih dahulu');
         }
@@ -142,6 +144,10 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
       // Invalidate providers
       ref.invalidate(walletsProvider);
       ref.invalidate(totalBalanceProvider);
+      ref.invalidate(futureTransactionProjectionProvider);
+      if (affectedCashbookId != null) {
+        ref.invalidate(cashbookBalanceProvider(affectedCashbookId));
+      }
 
       if (mounted) {
         context.pop();
@@ -150,7 +156,7 @@ class _WalletFormScreenState extends ConsumerState<WalletFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menyimpan: ${e.toString()}'),
+            content: const Text('Gagal menyimpan dompet. Silakan coba lagi.'),
             backgroundColor: AppColors.error,
           ),
         );

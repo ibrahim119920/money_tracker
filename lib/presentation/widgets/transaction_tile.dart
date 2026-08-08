@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/constants.dart';
 import '../../core/utils/utils.dart';
 import '../../domain/entities/entities.dart';
+import '../icons/app_icons.dart';
 
 /// Reusable flat list row for a transaction.
 ///
@@ -24,63 +25,6 @@ class TransactionTile extends StatelessWidget {
     this.dense = false,
   });
 
-  // Parse icon string to IconData (fallback to Icons.category).
-  IconData _getIcon() {
-    const defaultIcon = Icons.category_outlined;
-
-    if (transaction.categoryIcon == null || transaction.categoryIcon!.isEmpty) {
-      return defaultIcon;
-    }
-
-    final iconName = transaction.categoryIcon!
-        .replaceAll('Icons.', '')
-        .replaceAll('_outlined', '')
-        .toLowerCase();
-
-    switch (iconName) {
-      case 'salary':
-      case 'work':
-        return Icons.work_outlined;
-      case 'bonus':
-      case 'gift':
-        return Icons.card_giftcard_outlined;
-      case 'investment':
-      case 'trending_up':
-        return Icons.trending_up_outlined;
-      case 'freelance':
-      case 'assignment':
-        return Icons.assignment_outlined;
-      case 'business':
-        return Icons.business_outlined;
-      case 'food':
-      case 'restaurant':
-        return Icons.restaurant_outlined;
-      case 'transport':
-      case 'directions_car':
-        return Icons.directions_car_outlined;
-      case 'shopping':
-      case 'shopping_bag':
-        return Icons.shopping_bag_outlined;
-      case 'bills':
-      case 'receipt':
-        return Icons.receipt_outlined;
-      case 'health':
-      case 'health_and_safety':
-        return Icons.health_and_safety_outlined;
-      case 'entertainment':
-      case 'movie':
-        return Icons.movie_outlined;
-      case 'education':
-      case 'school':
-        return Icons.school_outlined;
-      case 'communication':
-      case 'phone':
-        return Icons.phone_outlined;
-      default:
-        return defaultIcon;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -99,10 +43,11 @@ class TransactionTile extends StatelessWidget {
     final amount =
         '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.amount)}';
     final verticalPadding = dense ? AppSpacing.sm : AppSpacing.md;
+    final isFuture = DateFormatter.isFutureDate(transaction.transactionDate);
 
     return Semantics(
       button: onTap != null,
-      label: '$title, $amount',
+      label: '$title, $amount${isFuture ? ', transaksi mendatang' : ''}',
       child: Column(
         children: [
           Material(
@@ -126,7 +71,7 @@ class TransactionTile extends StatelessWidget {
                             borderRadius: AppRadius.smallBorder,
                           ),
                           child: Icon(
-                            _getIcon(),
+                            AppIcons.forCategory(transaction.categoryIcon),
                             color: typeColor,
                             size: AppIconSize.small + 2,
                           ),
@@ -145,6 +90,10 @@ class TransactionTile extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (isFuture) ...[
+                              const SizedBox(height: AppSpacing.xxs),
+                              const FutureTransactionBadge(),
+                            ],
                             const SizedBox(height: AppSpacing.xxs),
                             Text(
                               metadata,
@@ -190,6 +139,50 @@ class TransactionTile extends StatelessWidget {
           if (showDivider)
             Divider(height: 1, indent: 52, color: colorScheme.outlineVariant),
         ],
+      ),
+    );
+  }
+}
+
+/// Visible and accessible status for an income/expense date after today.
+class FutureTransactionBadge extends StatelessWidget {
+  const FutureTransactionBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Semantics(
+      container: true,
+      label: 'Transaksi dijadwalkan untuk masa depan',
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs,
+            vertical: 2,
+          ),
+          decoration: BoxDecoration(
+            color: colorScheme.tertiaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.schedule_rounded,
+                size: 14,
+                color: colorScheme.onTertiaryContainer,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Mendatang',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onTertiaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

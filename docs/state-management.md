@@ -58,6 +58,8 @@ The controllers contain only form state and small mutations. They do not own a `
 |---|---|---|
 | `walletsProvider` | `FutureProvider<List<WalletEntity>>` | `activeCashbookProvider`; delegates to `WalletRepository.getWallets()` |
 | `totalBalanceProvider` | `FutureProvider<int>` | `activeCashbookProvider`; delegates to `CashbookRepository.getTotalBalance()` |
+| `cashbookBalanceProvider` | `FutureProvider.family<int, String>` | Named per-cashbook balance provider for cashbook rows; avoids creating a new anonymous provider on every rebuild |
+| `futureTransactionProjectionProvider` | `FutureProvider<FutureTransactionProjection>` | Active cashbook; derives today's balance and end-of-current-month projection from future income/expense using integer Rupiah |
 
 ### Tier 6 — Transaction Data (FutureProvider + StateProvider)
 
@@ -65,12 +67,14 @@ The controllers contain only form state and small mutations. They do not own a `
 |---|---|---|
 | `transactionFilterProvider` | `StateProvider` | Holds `{type, month}` filter state |
 | `selectedMonthProvider` | `StateProvider<DateTime>` | Selected month in transaction list |
-| `transactionsProvider` | `FutureProvider<List<TransactionEntity>>` | Reads both filter providers |
+| `transactionHistorySegmentProvider` | `StateProvider<TransactionHistorySegment>` | UI segment state for All / Income / Expense / Transfer |
+| `transactionsProvider` | `FutureProvider<List<TransactionEntity>>` | Reads the transaction filter and `selectedMonthProvider` |
 | `transactionListItemsProvider` | `FutureProvider<List<TransactionListItem>>` | Precomputes grouped rows for transaction list UI; keeps grouping work out of `TransactionListScreen.build()` |
 | `transactionDetailProvider` | `FutureProvider.family<TransactionEntity, String>` | Fetches fresh transaction detail by `transactionId` (with wallet/category joins) |
 | `monthlySummaryProvider` | `FutureProvider<Map>` | Income/expense totals for selected month; delegates to `TransactionRepository.getMonthlySummaryForReport()` |
 | `categoriesProvider` | `FutureProvider.family` | Keyed by `cashbookId` |
 | `transfersProvider` | `FutureProvider<List<TransferEntity>>` | Transfer history; delegates to `TransactionRepository.getTransfersByCashbook()` |
+| `selectedMonthTransfersProvider` | `FutureProvider<List<TransferEntity>>` | Active cashbook transfers restricted to `selectedMonthProvider` for the fourth history segment |
 
 ---
 
@@ -89,12 +93,14 @@ User completes amount → category → wallet → date → optional notes
   3. ref.invalidate(walletsProvider)         ← balance update
   4. ref.invalidate(totalBalanceProvider)    ← dashboard refresh
   5. ref.invalidate(monthlySummaryProvider)  ← summary recalc
-  6. context.pop()
+  6. ref.invalidate(futureTransactionProjectionProvider)
+  7. ref.invalidate(cashbookBalanceProvider(cashbookId))
+  8. context.pop()
   ↓
 Riverpod rebuilds all watching widgets automatically
 ```
 
-Transfer uses the same controlled five-step shell with `TransferDraft`, and submits through `createTransfer()` with invalidation of `transfersProvider`, `walletsProvider`, and `totalBalanceProvider`. Transfer history is a separate `/transfer/history` route.
+Income and expense can be scheduled in the future, while transfer still rejects future calendar dates in the draft and repository. Transfer uses the same controlled five-step shell with `TransferDraft`, and submits through `createTransfer()` with invalidation of `transfersProvider`, `selectedMonthTransfersProvider`, `walletsProvider`, and `totalBalanceProvider`. Transfer history is a separate `/transfer/history` route.
 
 ---
 
@@ -143,7 +149,7 @@ All write operations follow this pattern:
 This provider does double duty: it fetches the default cashbook AND writes it into `activeCashbookProvider`. All downstream data providers depend on `activeCashbookProvider`, so `DashboardScreen` must watch `defaultCashbookProvider` in its build method to trigger the chain.
 
 ### Repository-Backed Providers
-Some providers no longer talk to Supabase directly. `cashbooksProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`, and `transfersProvider` now delegate to repository methods so the provider layer stays focused on orchestration, state derivation, and invalidation.
+Some providers no longer talk to Supabase directly. `cashbooksProvider`, `walletsProvider`, `totalBalanceProvider`, `cashbookBalanceProvider`, `futureTransactionProjectionProvider`, `monthlySummaryProvider`, `categoriesProvider`, and the transfer providers delegate to repository methods so the provider layer stays focused on orchestration, state derivation, and invalidation.
 
 ### Loading Pipeline Split
 `LoadingScreen` resolves `defaultCashbookProvider`, `cashbooksProvider`, and `walletsProvider` before entering the dashboard. The readiness check now lives outside `build()` so the pre-warm flow stays stable across rebuilds.
@@ -156,6 +162,7 @@ Used by `MoneyTrackerApp` in `main.dart` as `themeMode` source. `SettingsScreen`
 
 ### categoriesProvider.family
 Uses `.family` modifier keyed by `cashbookId`. Categories are per cashbook (user-defined) plus system-wide ones (null cashbook_id). Pass the active cashbook ID when watching: `ref.watch(categoriesProvider(cashbookId))`.
+The shared picker creates user categories through `TransactionRepository.createCategory()` and invalidates this exact family key before selecting the returned persisted entity.
 
 ### transactionListItemsProvider
 This provider derives from `transactionsProvider` and precomputes the header/item rows once per data refresh. `TransactionListScreen` consumes these rows directly so grouping work does not happen inside the widget build.
@@ -166,7 +173,8 @@ This provider derives from `transactionsProvider` and precomputes the header/ite
 
 | Operation | Invalidate |
 |---|---|
-| Create/update/delete transaction | `transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider` |
-| Create/update/delete wallet | `walletsProvider`, `totalBalanceProvider` |
+| Create/update/delete transaction | `transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`, `futureTransactionProjectionProvider`, `cashbookBalanceProvider(cashbookId)` |
+| Create category | `categoriesProvider(cashbookId)` |
+| Create/update/delete wallet | `walletsProvider`, `totalBalanceProvider`, `futureTransactionProjectionProvider`, `cashbookBalanceProvider(cashbookId)` |
 | Create/update/delete cashbook | `cashbooksProvider`, `defaultCashbookProvider` |
-| Create transfer | `transfersProvider`, `walletsProvider`, `totalBalanceProvider` |
+| Create transfer | `transfersProvider`, `selectedMonthTransfersProvider`, `walletsProvider`, `totalBalanceProvider` |

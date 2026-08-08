@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/constants.dart';
 import '../../core/utils/utils.dart';
 import '../../domain/entities/entities.dart';
 import '../icons/app_icons.dart';
+import '../providers/providers.dart';
 
 /// Shared progress header for the sequential add flows.
 class SequentialFlowProgress extends StatelessWidget {
@@ -469,6 +471,236 @@ class CategoryOptionTile extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Cashbook-scoped category picker shared by add and edit transaction flows.
+///
+/// Selection returns the entity created by the database, so the transaction
+/// form always persists a valid category foreign key instead of a local stub.
+class CategoryPickerSheet extends ConsumerStatefulWidget {
+  final String cashbookId;
+  final TransactionType type;
+  final String? selectedId;
+
+  const CategoryPickerSheet({
+    super.key,
+    required this.cashbookId,
+    required this.type,
+    required this.selectedId,
+  });
+
+  @override
+  ConsumerState<CategoryPickerSheet> createState() =>
+      _CategoryPickerSheetState();
+}
+
+class _CategoryPickerSheetState extends ConsumerState<CategoryPickerSheet> {
+  bool _isCreating = false;
+
+  Future<String?> _requestCategoryName() async {
+    final formKey = GlobalKey<FormState>();
+    final controller = TextEditingController();
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Tambah Kategori'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 100,
+              validator: (value) =>
+                  Validators.validateFieldName(value, 'Nama kategori'),
+              decoration: const InputDecoration(
+                labelText: 'Nama kategori',
+                hintText: 'Contoh: Donasi',
+              ),
+              onFieldSubmitted: (_) {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(controller.text.trim());
+                }
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(controller.text.trim());
+                }
+              },
+              child: const Text('Tambah'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _createCategory() async {
+    if (_isCreating) return;
+    final categoryName = await _requestCategoryName();
+    if (categoryName == null || !mounted) return;
+
+    setState(() => _isCreating = true);
+    try {
+      final category = await ref
+          .read(transactionRepositoryProvider)
+          .createCategory(
+            cashbookId: widget.cashbookId,
+            type: widget.type,
+            categoryName: categoryName,
+            icon: 'category',
+            color: widget.type == TransactionType.income
+                ? '#43A047'
+                : '#E53935',
+          );
+      ref.invalidate(categoriesProvider(widget.cashbookId));
+
+      if (!mounted) return;
+      Navigator.of(context).pop(category);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Gagal menambahkan kategori. Silakan coba lagi.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isCreating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final categoriesAsync = ref.watch(categoriesProvider(widget.cashbookId));
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.64,
+      minChildSize: 0.42,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.sm,
+              AppSpacing.xs,
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outline,
+                    borderRadius: AppRadius.smallBorder,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Pilih Kategori',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Tooltip(
+                      message: 'Tambah kategori',
+                      child: TextButton.icon(
+                        key: const ValueKey('category-add-action'),
+                        onPressed: _isCreating ? null : _createCategory,
+                        icon: _isCreating
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(AppIcons.add),
+                        label: const Text('Tambah'),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: categoriesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, _) => Center(
+                child: TextButton(
+                  onPressed: () =>
+                      ref.invalidate(categoriesProvider(widget.cashbookId)),
+                  child: const Text('Muat ulang kategori'),
+                ),
+              ),
+              data: (allCategories) {
+                final categories = allCategories
+                    .where((category) => category.type == widget.type)
+                    .toList();
+                if (categories.isEmpty) {
+                  return const Center(
+                    child: Text('Belum ada kategori untuk tipe ini'),
+                  );
+                }
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 430 ? 4 : 3;
+                    return GridView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        mainAxisSpacing: AppSpacing.sm,
+                        crossAxisSpacing: AppSpacing.sm,
+                        mainAxisExtent: 124,
+                      ),
+                      itemCount: categories.length,
+                      itemBuilder: (context, index) {
+                        final category = categories[index];
+                        return CategoryOptionTile(
+                          key: ValueKey(
+                            'category-picker-option-${category.categoryId}',
+                          ),
+                          category: category,
+                          selected: category.categoryId == widget.selectedId,
+                          onTap: () => Navigator.of(context).pop(category),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

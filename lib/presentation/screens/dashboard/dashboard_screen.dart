@@ -99,12 +99,24 @@ class _DashboardScaffoldState extends ConsumerState<_DashboardScaffold> {
     ref.invalidate(walletsProvider);
     ref.invalidate(totalBalanceProvider);
     ref.invalidate(monthlySummaryProvider);
+    ref.invalidate(futureTransactionProjectionProvider);
     await Future.wait([
       ref.read(walletsProvider.future).catchError((_) => <WalletEntity>[]),
       ref.read(totalBalanceProvider.future).catchError((_) => 0),
       ref
           .read(monthlySummaryProvider.future)
           .catchError((_) => <String, int>{}),
+      ref
+          .read(futureTransactionProjectionProvider.future)
+          .catchError(
+            (_) => const FutureTransactionProjection(
+              currentBalance: 0,
+              endOfCurrentMonthBalance: 0,
+              futureNet: 0,
+              currentMonthFutureNet: 0,
+              futureTransactionCount: 0,
+            ),
+          ),
     ]);
   }
 
@@ -484,6 +496,8 @@ class _TotalBalanceCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final totalBalanceAsync = ref.watch(totalBalanceProvider);
+    final projectionAsync = ref.watch(futureTransactionProjectionProvider);
+    final projection = projectionAsync.valueOrNull;
 
     return Container(
       width: double.infinity,
@@ -517,16 +531,24 @@ class _TotalBalanceCard extends ConsumerWidget {
               loading: () =>
                   const _TotalBalanceLoading(key: ValueKey('loading')),
               error: (_, _) => Text(
-                '—',
+                'Saldo tidak tersedia',
                 key: const ValueKey('error'),
                 style: TextStyle(
                   color: colorScheme.onPrimaryContainer,
-                  fontSize: 28,
+                  fontSize: 16,
                 ),
               ),
               data: (total) => Text(
-                CurrencyFormatter.format(total),
-                key: ValueKey(total),
+                CurrencyFormatter.format(
+                  projection?.hasFutureTransactions == true
+                      ? projection!.currentBalance
+                      : total,
+                ),
+                key: ValueKey(
+                  projection?.hasFutureTransactions == true
+                      ? projection!.currentBalance
+                      : total,
+                ),
                 style: TextStyle(
                   color: colorScheme.onPrimaryContainer,
                   fontSize: 32,
@@ -535,7 +557,79 @@ class _TotalBalanceCard extends ConsumerWidget {
               ),
             ),
           ),
+          if (projection?.hasFutureTransactions == true) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _FutureBalanceProjection(projection: projection!),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _FutureBalanceProjection extends StatelessWidget {
+  final FutureTransactionProjection projection;
+
+  const _FutureBalanceProjection({required this.projection});
+
+  String _signedCurrency(int amount) {
+    if (amount > 0) return '+${CurrencyFormatter.format(amount)}';
+    if (amount < 0) return '-${CurrencyFormatter.format(amount.abs())}';
+    return CurrencyFormatter.format(0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final currentMonth = DateFormatter.formatMonthYear(DateTime.now());
+    return Semantics(
+      container: true,
+      label:
+          '${projection.futureTransactionCount} transaksi mendatang. Saldo akhir $currentMonth diproyeksikan ${CurrencyFormatter.format(projection.endOfCurrentMonthBalance)}.',
+      child: ExcludeSemantics(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: colorScheme.onPrimaryContainer.withValues(alpha: 0.1),
+            borderRadius: AppRadius.controlBorder,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.schedule_rounded,
+                size: AppIconSize.small,
+                color: colorScheme.onPrimaryContainer,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${projection.futureTransactionCount} transaksi mendatang · Net ${_signedCurrency(projection.futureNet)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      'Proyeksi akhir $currentMonth: ${CurrencyFormatter.format(projection.endOfCurrentMonthBalance)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -574,14 +668,38 @@ class _MonthlySection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(monthlySummaryProvider);
     final selectedMonth = ref.watch(selectedMonthProvider);
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
 
     return Padding(
       padding: AppSpacing.screenPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppSectionHeader(
-            title: 'Ringkasan ${DateFormatter.formatMonthYear(selectedMonth)}',
+          const AppSectionHeader(title: 'Ringkasan'),
+          const SizedBox(height: AppSpacing.xs),
+          _DashboardMonthNavigation(
+            selectedMonth: selectedMonth,
+            onPreviousMonth: () {
+              final previous = DateTime(
+                selectedMonth.year,
+                selectedMonth.month - 1,
+              );
+              ref.read(selectedMonthProvider.notifier).state = previous;
+              ref.invalidate(monthlySummaryProvider);
+            },
+            onNextMonth: selectedMonth.isAtSameMomentAs(currentMonth)
+                ? null
+                : () {
+                    final next = DateTime(
+                      selectedMonth.year,
+                      selectedMonth.month + 1,
+                    );
+                    if (!next.isAfter(currentMonth)) {
+                      ref.read(selectedMonthProvider.notifier).state = next;
+                      ref.invalidate(monthlySummaryProvider);
+                    }
+                  },
           ),
           const SizedBox(height: AppSpacing.xs),
           AnimatedSwitcher(
@@ -601,6 +719,68 @@ class _MonthlySection extends ConsumerWidget {
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardMonthNavigation extends StatelessWidget {
+  final DateTime selectedMonth;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback? onNextMonth;
+
+  const _DashboardMonthNavigation({
+    required this.selectedMonth,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final monthLabel = DateFormatter.formatMonthYear(selectedMonth);
+    return Container(
+      height: AppComponentHeight.interactive,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.controlBorder,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            key: const ValueKey('dashboard-month-previous'),
+            onPressed: onPreviousMonth,
+            tooltip: 'Bulan sebelumnya',
+            constraints: const BoxConstraints(
+              minWidth: AppComponentHeight.interactive,
+              minHeight: AppComponentHeight.interactive,
+            ),
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Expanded(
+            child: Semantics(
+              header: true,
+              label: 'Ringkasan bulan $monthLabel',
+              child: Text(
+                monthLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('dashboard-month-next'),
+            onPressed: onNextMonth,
+            tooltip: 'Bulan berikutnya',
+            constraints: const BoxConstraints(
+              minWidth: AppComponentHeight.interactive,
+              minHeight: AppComponentHeight.interactive,
+            ),
+            icon: const Icon(Icons.chevron_right),
           ),
         ],
       ),
@@ -805,25 +985,14 @@ class _WalletSection extends ConsumerWidget {
                   ),
                 );
               }
-              return LayoutBuilder(
+              return Padding(
                 key: ValueKey(wallets.length),
-                builder: (context, constraints) {
-                  final cardWidth = (constraints.maxWidth * 0.78)
-                      .clamp(240.0, 280.0)
-                      .toDouble();
-                  return SizedBox(
-                    height: AppComponentHeight.walletCard,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.screenHorizontal - 4,
-                      ),
-                      itemCount: wallets.length,
-                      itemBuilder: (_, index) =>
-                          _WalletCard(wallet: wallets[index], width: cardWidth),
-                    ),
-                  );
-                },
+                padding: AppSpacing.screenPadding,
+                child: Column(
+                  children: [
+                    for (final wallet in wallets) _WalletCard(wallet: wallet),
+                  ],
+                ),
               );
             },
           ),
@@ -839,77 +1008,65 @@ class _WalletLoadingStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth = (constraints.maxWidth * 0.78)
-            .clamp(240.0, 280.0)
-            .toDouble();
-        return SizedBox(
-          height: AppComponentHeight.walletCard,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenHorizontal - 4,
+    return Column(
+      children: List.generate(
+        2,
+        (_) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Container(
+            height: 112,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHigh,
+              borderRadius: AppRadius.cardBorder,
             ),
-            itemCount: 3,
-            itemBuilder: (_, _) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Container(
-                width: cardWidth,
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh,
-                  borderRadius: AppRadius.cardBorder,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: AppIconSize.regular,
+                  height: AppIconSize.regular,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outlineVariant,
+                    borderRadius: AppRadius.smallBorder,
+                  ),
                 ),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: AppIconSize.regular,
-                      height: AppIconSize.regular,
-                      decoration: BoxDecoration(
-                        color: colorScheme.outlineVariant,
-                        borderRadius: AppRadius.smallBorder,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      width: 96,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: colorScheme.outlineVariant,
-                        borderRadius: AppRadius.smallBorder,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Container(
-                      width: 72,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: colorScheme.outlineVariant,
-                        borderRadius: AppRadius.smallBorder,
-                      ),
-                    ),
-                  ],
+                const Spacer(),
+                Container(
+                  width: 128,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outlineVariant,
+                    borderRadius: AppRadius.smallBorder,
+                  ),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.xs),
+                Container(
+                  width: 96,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: colorScheme.outlineVariant,
+                    borderRadius: AppRadius.smallBorder,
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Wallet Card (horizontal scroll item)
+// Wallet Card
 // ---------------------------------------------------------------------------
 
 class _WalletCard extends StatelessWidget {
   final WalletEntity wallet;
-  final double width;
 
-  const _WalletCard({required this.wallet, required this.width});
+  const _WalletCard({required this.wallet});
 
   WalletPaletteEntry _paletteEntry(BuildContext context) {
     final palette = Theme.of(context).brightness == Brightness.dark
@@ -930,46 +1087,62 @@ class _WalletCard extends StatelessWidget {
     final foregroundColor = paletteEntry.foreground;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: SizedBox(
-        width: width,
-        child: Semantics(
-          button: true,
-          label:
-              '${wallet.walletName}, ${CurrencyFormatter.format(wallet.currentBalance)}',
-          child: Material(
-            color: color,
-            borderRadius: AppRadius.cardBorder,
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => context.push('/wallets/detail', extra: wallet),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Semantics(
+        button: true,
+        label:
+            '${wallet.walletName}, ${CurrencyFormatter.format(wallet.currentBalance)}',
+        child: Material(
+          color: color,
+          borderRadius: AppRadius.cardBorder,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => context.push('/wallets/detail', extra: wallet),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 112),
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      AppIcons.forWalletType(wallet.type),
-                      color: foregroundColor,
-                      size: AppIconSize.object,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          AppIcons.forWalletType(wallet.type),
+                          color: foregroundColor,
+                          size: AppIconSize.object,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            wallet.walletName,
+                            style: TextStyle(
+                              color: foregroundColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Spacer(),
-                    Text(
-                      wallet.walletName,
-                      style: TextStyle(
-                        color: foregroundColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          CurrencyFormatter.format(wallet.currentBalance),
+                          style: TextStyle(
+                            color: foregroundColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                        ),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      CurrencyFormatter.format(wallet.currentBalance),
-                      style: TextStyle(color: foregroundColor, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

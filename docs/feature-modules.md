@@ -39,9 +39,9 @@
 
 ### UI Components
 - `_CashbookSwitcher` — dropdown/chip to change active cashbook
-- `_TotalBalanceCard` — sum of all wallet balances
-- `_MonthlySection` — income vs expense for current month
-- `_WalletSection` — horizontal scrollable wallet cards with balances
+- `_TotalBalanceCard` — current balance after scheduled future transactions are excluded, plus a compact future-impact projection
+- `_MonthlySection` — income vs expense with previous/next month controls; the next month is disabled at the current month
+- `_WalletSection` — full-width vertical wallet cards with accessible full-balance labels
 - `_TutorialOverlay` — fullscreen mandatory onboarding (muncul jika belum ada cashbook/wallet)
 - `_TutorialCard` — card guide per step
 - `_StepDot` — step indicator
@@ -50,8 +50,8 @@
 - `LoadingScreen` pre-warms `defaultCashbookProvider`, `cashbooksProvider`, `walletsProvider` sebelum masuk Dashboard
 - Navigasi ke Dashboard hanya setelah ketiganya resolve (mencegah race condition `walletsProvider` return `[]` sebelum `activeCashbookProvider` ter-set)
 - `defaultCashbookProvider` menggunakan `getEarliestCashbook()` (order `created_at ASC`) untuk auto-load
-- `totalBalanceProvider` sums all `current_balance` values from `walletsProvider`
-- `monthlySummaryProvider` queries transactions grouped by type for the current month
+- `totalBalanceProvider` remains the stored trigger-updated wallet total; `futureTransactionProjectionProvider` removes future income/expense effects for the real balance today and projects the end of the current month
+- Dashboard month navigation updates `selectedMonthProvider`, so the summary and transaction history use the same selected month
 - `_TutorialOverlay` tidak tampil selama provider masih loading (hardened race condition guard)
 - Section loading dashboard memakai transisi ringan (`AnimatedSwitcher`) dan placeholder visual agar perubahan loading → data terasa lebih natural
 - Visual shell dashboard, loading, dan subcard sekarang membaca `ColorScheme` agar dark palette baru ikut terpropagasi ke background, app bar, bottom sheet, summary card, wallet card, dan loading skeleton.
@@ -59,6 +59,7 @@
 ### Data Layer
 - `CashbookRepository.getEarliestCashbook(userId)` — order `created_at ASC`, `maybeSingle`
 - `WalletRepository.getWalletsByCashbook(cashbookId)` — returns all active wallets
+- `TransactionRepository.getFutureTransactionProjection(cashbookId)` — integer-only scheduled income/expense projection; transfer dates remain ineligible for future scheduling
 
 ---
 
@@ -138,8 +139,8 @@
 - Detail receives `extra: TransactionEntity`
 
 ### UI Components (transaction_list_screen.dart)
-- `_FilterBar` — type chips (Income / Expense / All)
-- `_TypeChip` — individual filter chip
+- `_FilterBar` — four equal segmented filters (Income / Expense / Transfer / All)
+- `_TypeChip` — individual filter segment
 - `_SummaryBar` — total income and expense for selected month
 - `_DateHeader` — grouped date separator
 - `_MonthPickerDialog` — month/year selection wheel
@@ -147,14 +148,15 @@
 ### Business Logic
 - `transactionFilterProvider` (`StateProvider`) holds current `type` filter and `month`
 - `selectedMonthProvider` (`StateProvider<DateTime>`) drives month display
-- `transactionsProvider` reads both filter providers and queries accordingly
+- `transactionsProvider` reads the transaction filter and `selectedMonthProvider`, so list history follows the visible month
+- The Transfer segment reads `selectedMonthTransfersProvider`; it is month-scoped and does not alter the cashbook total
 - `transactionListItemsProvider` precomputes grouped rows so UI build tidak perlu melakukan grouping ulang
 - `TransactionDetailScreen` refreshes detail data from database via `transactionDetailProvider(transactionId)` to ensure wallet/category/description fields stay accurate
-- After any mutation: must invalidate `transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`
+- After any transaction mutation: invalidate `transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`, `futureTransactionProjectionProvider`, and the relevant `cashbookBalanceProvider(cashbookId)`
 - Add drafts are typed (`TransactionDraft`) and auto-disposed; money is kept as an integer Rupiah source of truth and the custom keypad never opens the system keyboard.
-- Expense wallets remain visible when their balance is insufficient, with an explanatory disabled state. Date validation rejects future dates and notes use the same centralized validator as edit.
+- Expense wallets remain visible when their balance is insufficient, with an explanatory disabled state. Income and expense dates can be scheduled in the future; transfer dates remain capped at today. Notes use the same centralized validator as edit.
 - New add records pass `name: null`; the existing tile and detail consumers safely fall back to category/name placeholder or notes, and the edit form keeps its name field unchanged.
-- Shared `TransactionTile`, list filter chips, summary bar, and detail header now use theme-aware surfaces/text so dark mode tidak lagi menahan warna light palette.
+- Shared `TransactionTile`, list filter chips, summary bar, and detail header now use theme-aware surfaces/text so dark mode tidak lagi menahan warna light palette. Future income/expense rows and detail show an explicit scheduled/future badge with semantic text.
 
 ### UX Notes
 - Transaction list memakai placeholder loading untuk summary bar dan daftar transaksi agar refresh/load terasa lebih ringan
@@ -172,13 +174,15 @@
 **Status:** ✅ Integrated (no standalone screen — picker only)
 
 ### Files Involved
-- `_CategoryPickerSheet` inside `transaction_form_screen.dart`
+- `CategoryPickerSheet` inside `sequential_flow_widgets.dart`, shared by add and edit flows
 - `categoriesProvider` in `providers.dart`
 
 ### Business Logic
 - Categories have `cashbook_id` (user-specific) or null (system-wide)
 - `is_system = true` categories ship as Supabase seed data (cannot be deleted)
 - Icons: string keys (`makanan`, `transportasi`, `gaji`, etc.) mapped to `IconData` at render time
+- The picker has a responsive 3/4-column grid, maps aliases through `AppIcons`, and keeps a visible `Tambah kategori` action even when the category list is empty.
+- Creating a category calls `TransactionRepository.createCategory()`, returns the persisted database category ID, invalidates `categoriesProvider(cashbookId)`, and selects it immediately.
 
 ---
 
@@ -204,13 +208,13 @@
 ### Business Logic
 - Transfer dibuat via repository (`createTransfer`), bukan query langsung dari screen
 - Cek saldo dompet asal sebelum create transfer
-- Setelah create transfer: invalidate `transfersProvider`, `walletsProvider`, `totalBalanceProvider`
+- Setelah create transfer: invalidate `transfersProvider`, `selectedMonthTransfersProvider`, `walletsProvider`, dan `totalBalanceProvider`
 - Akses cepat dari Dashboard bottom sheet: opsi Transfer (aktif)
 - `TransferDraft` clears a conflicting destination when the source changes; submit re-reads wallets so live balance/list changes cannot silently create an invalid transfer.
 
 ### Data Layer
 - `TransactionRepository.createTransfer()` — insert transfer baru
-- `TransactionRepository.getTransfersByCashbook()` — fetch daftar transfer + nama dompet asal/tujuan
+- `TransactionRepository.getTransfersByCashbook()` — fetch daftar transfer + nama dompet asal/tujuan; accepts an optional month scope for the transaction-history segment
 
 ---
 

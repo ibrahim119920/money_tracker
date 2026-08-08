@@ -46,7 +46,8 @@ domain/
 │   └── entities.dart   All entity classes + enums (single file)
 │       Entities: UserEntity, CashbookEntity, WalletEntity,
 │                 CategoryEntity, TransactionEntity, TransferEntity,
-│                 RecurringTransactionEntity
+│                 RecurringTransactionEntity, FutureTransactionImpact,
+│                 FutureTransactionProjection
 │       Enums:    WalletType (cash/bankAcc/eWallet)
 │                 TransactionType (income/expense)
 │                 RecurringFrequency
@@ -68,7 +69,8 @@ data/
     └── cashbook_wallet_repository.dart
         CashbookRepository  — cashbooks CRUD + getDefault / getUserCashbooks
         WalletRepository    — wallets CRUD + balance queries
-        TransactionRepository — transactions + categories + monthly summary
+        TransactionRepository — transactions, database-backed categories,
+                                transfer history, monthly summary, and future projection
 ```
 
 ---
@@ -89,7 +91,7 @@ screens/
 ├── splash/
 │   └── loading_screen.dart      LoadingScreen — pre-warm providers before dashboard
 ├── dashboard/
-│   └── dashboard_screen.dart    DashboardScreen — balance overview, month summary, wallet list
+│   └── dashboard_screen.dart    DashboardScreen — scheduled-balance overview, month navigation, vertical wallet list
 ├── cashbook/
 │   ├── cashbook_list_screen.dart
 │   └── cashbook_form_screen.dart
@@ -98,7 +100,7 @@ screens/
 │   ├── wallet_form_screen.dart
 │   └── wallet_detail_screen.dart
 ├── transaction/
-│   ├── transaction_list_screen.dart   Filter by type + month; grouped by date via derived provider
+│   ├── transaction_list_screen.dart   Four history segments + month scope; grouped by date via derived provider
 │   ├── transaction_form_screen.dart   Create/edit income or expense
 │   └── transaction_detail_screen.dart
 ├── transfer/
@@ -113,7 +115,8 @@ screens/
 
 | File | Widget | Notes |
 |---|---|---|
-| `transaction_tile.dart` | `TransactionTile` | Left border color by type (green/red); props: transaction, onTap, showWalletName |
+| `transaction_tile.dart` | `TransactionTile`, `FutureTransactionBadge` | Type-colored row plus accessible scheduled/future marker; props: transaction, onTap, showWalletName |
+| `sequential_flow_widgets.dart` | `CategoryPickerSheet` | Shared responsive database-backed category picker for add/edit flows |
 
 ---
 
@@ -136,9 +139,9 @@ screens/
 |---|---|---|---|
 | Auth | `screens/auth/` | `authStateProvider`, `currentUserProvider` | Supabase Auth (direct) |
 | Loading / prewarm | `screens/splash/loading_screen.dart` | `defaultCashbookProvider`, `cashbooksProvider`, `walletsProvider` | CashbookRepository, WalletRepository |
-| Dashboard | `screens/dashboard/` | `defaultCashbookProvider`, `totalBalanceProvider`, `monthlySummaryProvider`, `walletsProvider` | CashbookRepository, WalletRepository |
+| Dashboard | `screens/dashboard/` | `defaultCashbookProvider`, `totalBalanceProvider`, `futureTransactionProjectionProvider`, `monthlySummaryProvider`, `walletsProvider` | CashbookRepository, WalletRepository, TransactionRepository |
 | Cashbooks | `screens/cashbook/` | `cashbooksProvider`, `activeCashbookProvider` | CashbookRepository |
-| Wallets | `screens/wallet/` | `walletsProvider`, `totalBalanceProvider` | WalletRepository |
-| Transactions | `screens/transaction/` | `transactionsProvider`, `transactionListItemsProvider`, `transactionFilterProvider`, `selectedMonthProvider` | TransactionRepository |
-| Categories | (picker sheet inside transaction form) | `categoriesProvider` | TransactionRepository |
-| Transfer | `screens/transfer/transfer_screen.dart` | `transfersProvider` | TransactionRepository |
+| Wallets | `screens/wallet/` | `walletsProvider`, `totalBalanceProvider`, `futureTransactionProjectionProvider` | WalletRepository |
+| Transactions | `screens/transaction/` | `transactionsProvider`, `transactionListItemsProvider`, `transactionFilterProvider`, `transactionHistorySegmentProvider`, `selectedMonthProvider`, `selectedMonthTransfersProvider` | TransactionRepository |
+| Categories | `CategoryPickerSheet` shared by transaction add/edit | `categoriesProvider` | TransactionRepository |
+| Transfer | `screens/transfer/transfer_screen.dart` | `transfersProvider`, `selectedMonthTransfersProvider` | TransactionRepository |

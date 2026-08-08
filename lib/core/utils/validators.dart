@@ -1,4 +1,5 @@
 import '../constants/app_strings.dart';
+import 'date_formatter.dart';
 import 'money_amount.dart';
 
 /// Form validators untuk Money Tracker
@@ -164,13 +165,23 @@ class Validators {
     return null;
   }
 
+  /// Validates a regular income or expense transaction date.
+  ///
+  /// Income and expense can be scheduled in the future, unlike transfers.
+  static String? validateTransactionDate(DateTime? value) {
+    if (value == null) {
+      return AppStrings.fieldRequired;
+    }
+    return null;
+  }
+
   /// Validasi tanggal (tidak boleh masa depan)
   static String? validatePastDate(DateTime? value) {
     if (value == null) {
       return AppStrings.fieldRequired;
     }
 
-    if (value.isAfter(DateTime.now())) {
+    if (DateFormatter.isFutureDate(value)) {
       return 'Tanggal tidak boleh di masa depan';
     }
 

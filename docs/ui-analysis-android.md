@@ -2,6 +2,8 @@
 
 > Audit dilakukan pada 1 Agustus 2026. Laporan ini berfokus pada pengalaman pengguna Android, bukan audit keamanan backend atau audit skema Supabase.
 
+> Pembaruan Sprint 4.31 (8 Agustus 2026): filter riwayat sekarang memakai empat segmen equal-width, kartu wallet Dashboard menjadi daftar vertikal dengan label saldo aksesibel, dan transaksi income/expense terjadwal memiliki penanda future yang eksplisit. Pembaruan ini divalidasi melalui widget/golden test pada lebar 360/393/412 dp dan text scale 1.3; belum ada pemeriksaan ulang pada perangkat Android untuk perubahan ini.
+
 ## Ringkasan eksekutif
 
 Money Tracker sudah memiliki fondasi UI yang baik untuk aplikasi keuangan pribadi: hierarki dashboard jelas, format Rupiah dan tanggal Indonesia konsisten di sebagian besar alur, mode terang/gelap tersedia, serta state loading dan empty state sudah dipikirkan. Dashboard adalah layar terkuat secara visual dan paling mendekati kualitas produk.
@@ -52,7 +54,7 @@ Hasil utama:
 
 Residual yang masih perlu fase berikutnya:
 
-1. Filter transaksi masih menggunakan horizontal viewport; ketika chip tipe dan tombol bulan penuh bersamaan, tepi chip kanan dapat terlihat terpotong dan affordance scroll belum eksplisit.
+1. Filter horizontal yang dicatat pada audit awal telah diganti dengan segmented control empat bagian; pemeriksaan perangkat Android untuk target sentuh dan gesture tetap diperlukan.
 2. Form transaksi membuka keyboard numerik secara otomatis; ini mempercepat input, tetapi sementara menyembunyikan field bawah sampai keyboard ditutup. Keputusan autofocus dan scroll-to-focused-field perlu divalidasi.
 3. Transfer history dapat menampilkan kartu terakhir sebagian pada viewport awal; konten dapat discroll, tetapi perlu verifikasi tambahan pada gesture navigation.
 4. Landscape, gesture navigation, font scale besar, ukuran layar kecil, dan dynamic color belum diuji dalam sesi ini.
@@ -75,7 +77,7 @@ Data pengguna yang tampil pada perangkat tidak dimasukkan ke laporan ini.
 
 - Kartu total saldo memakai visual yang dominan sehingga pengguna segera memahami kondisi keuangan.
 - Ringkasan pemasukan/pengeluaran bulanan mudah dipindai.
-- Kartu wallet horizontal cocok untuk beberapa dompet dan tidak memenuhi seluruh layar.
+- Kartu wallet Dashboard kini memenuhi lebar layar secara vertikal sehingga semua saldo dan label dapat dibaca tanpa mengandalkan carousel.
 - FAB “Transaksi Baru” memberi jalur cepat ke tindakan utama.
 - Bottom navigation memiliki empat tujuan yang mudah dipahami.
 - Loading, skeleton/placeholder, pull-to-refresh, dan empty state sudah tersedia di beberapa alur penting.
