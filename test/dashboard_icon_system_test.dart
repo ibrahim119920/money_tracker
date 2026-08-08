@@ -140,6 +140,13 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(BottomSheet), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget.runtimeType.toString() == '_DragHandle',
+            description: 'global bottom sheet drag handle',
+          ),
+          findsOneWidget,
+        );
         expect(find.byIcon(AppIcons.income), findsOneWidget);
         expect(find.byIcon(AppIcons.expense), findsOneWidget);
         expect(find.byIcon(AppIcons.transfer), findsOneWidget);

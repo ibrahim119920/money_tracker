@@ -269,7 +269,7 @@ class CashbookListItem extends ConsumerWidget {
         ),
         subtitle: balanceAsync.when(
           loading: () => const Text('Menghitung...'),
-          error: (_, __) => const Text('Saldo -'),
+          error: (_, _) => const Text('Saldo -'),
           data: (balance) => Text(
             '${AppStrings.currentBalance} ${CurrencyFormatter.format(balance)}',
           ),

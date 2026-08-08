@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/cashbook_wallet_repository.dart';
 import '../../domain/entities/entities.dart';
+import '../state/sequential_add_state.dart';
 
 // ============================================================================
 // CORE PROVIDERS
@@ -82,6 +83,22 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
 /// Flag untuk mencegah router redirect selama proses setup pertama kali (register onboarding)
 final setupInProgressProvider = StateProvider<bool>((ref) => false);
+
+// ============================================================================
+// SEQUENTIAL ADD FLOW DRAFT PROVIDERS
+// ============================================================================
+
+/// Draft for the income/expense sequential add flow.
+final transactionDraftProvider =
+    AutoDisposeNotifierProvider<TransactionDraftController, TransactionDraft>(
+      TransactionDraftController.new,
+    );
+
+/// Draft for the transfer sequential add flow.
+final transferDraftProvider =
+    AutoDisposeNotifierProvider<TransferDraftController, TransferDraft>(
+      TransferDraftController.new,
+    );
 
 // ============================================================================
 // AUTH PROVIDERS

@@ -119,17 +119,22 @@
 
 ## 5. Transaction Management
 
-**Status:** ✅ Complete
+**Status:** ✅ Complete — sequential add flow and existing edit form preserved
 
 ### Files Involved
 - `lib/presentation/screens/transaction/transaction_list_screen.dart`
+- `lib/presentation/screens/transaction/transaction_add_flow_screen.dart`
 - `lib/presentation/screens/transaction/transaction_form_screen.dart`
 - `lib/presentation/screens/transaction/transaction_detail_screen.dart`
 - `lib/presentation/widgets/transaction_tile.dart`
+- `lib/presentation/widgets/sequential_flow_widgets.dart`
+- `lib/presentation/state/sequential_add_state.dart`
 
 ### UI Entry Points
-- Route: `/transactions` (list), `/transactions/form` (create/edit), `/transactions/detail` (view)
-- Form receives `extra: {'type': TransactionType, 'transaction': TransactionEntity?}`
+- Routes: `/transactions` (list), `/transactions/add/income` and `/transactions/add/expense` (sequential create), `/transactions/form` (existing edit), `/transactions/detail` (view)
+- The add flow is five controlled steps: amount, category, source wallet, date, and optional notes. The PageView cannot be swiped and each Continue action validates the current step.
+- The legacy `/transactions/add` path redirects to the income flow. `/transactions/form` remains the compatibility edit route and shows a safe fallback for invalid route extras.
+- Edit form receives `extra: {'type': TransactionType, 'transaction': TransactionEntity}`
 - Detail receives `extra: TransactionEntity`
 
 ### UI Components (transaction_list_screen.dart)
@@ -146,6 +151,9 @@
 - `transactionListItemsProvider` precomputes grouped rows so UI build tidak perlu melakukan grouping ulang
 - `TransactionDetailScreen` refreshes detail data from database via `transactionDetailProvider(transactionId)` to ensure wallet/category/description fields stay accurate
 - After any mutation: must invalidate `transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`
+- Add drafts are typed (`TransactionDraft`) and auto-disposed; money is kept as an integer Rupiah source of truth and the custom keypad never opens the system keyboard.
+- Expense wallets remain visible when their balance is insufficient, with an explanatory disabled state. Date validation rejects future dates and notes use the same centralized validator as edit.
+- New add records pass `name: null`; the existing tile and detail consumers safely fall back to category/name placeholder or notes, and the edit form keeps its name field unchanged.
 - Shared `TransactionTile`, list filter chips, summary bar, and detail header now use theme-aware surfaces/text so dark mode tidak lagi menahan warna light palette.
 
 ### UX Notes
@@ -176,25 +184,29 @@
 
 ## 7. Transfer Between Wallets
 
-**Status:** ✅ Complete
+**Status:** ✅ Complete — sequential add flow and separate history route
 
 ### Files Involved
 - `lib/presentation/screens/transfer/transfer_screen.dart`
+- `lib/presentation/screens/transfer/transfer_history_screen.dart`
+- `lib/presentation/state/sequential_add_state.dart`
+- `lib/presentation/widgets/sequential_flow_widgets.dart`
 - `lib/data/repositories/cashbook_wallet_repository.dart` (`TransactionRepository.createTransfer`, `getTransfersByCashbook`)
 - `lib/presentation/providers/providers.dart` (`transfersProvider`)
-- `lib/app/router.dart` (GoRoute `/transfer`)
+- `lib/app/router.dart` (GoRoute `/transfer` and `/transfer/history`)
 - `lib/presentation/screens/dashboard/dashboard_screen.dart` (action sheet entry)
 
 ### UI Components
-- Form transfer: dompet asal, dompet tujuan, jumlah, tanggal, catatan
-- Validasi: dompet asal/tujuan tidak boleh sama, amount wajib > 0
-- Riwayat transfer: list transfer dengan tanggal, catatan, dan nominal
+- Add transfer flow: amount, source wallet, destination wallet, date, and optional notes.
+- `/transfer` is a controlled five-step flow; `/transfer/history` remains discoverable from both the AppBar and amount step.
+- Validasi: dompet asal/tujuan tidak boleh sama, source dengan saldo kurang tetap terlihat tetapi disabled, amount wajib > 0, and fewer than two wallets shows a specific create-wallet action.
 
 ### Business Logic
 - Transfer dibuat via repository (`createTransfer`), bukan query langsung dari screen
 - Cek saldo dompet asal sebelum create transfer
 - Setelah create transfer: invalidate `transfersProvider`, `walletsProvider`, `totalBalanceProvider`
 - Akses cepat dari Dashboard bottom sheet: opsi Transfer (aktif)
+- `TransferDraft` clears a conflicting destination when the source changes; submit re-reads wallets so live balance/list changes cannot silently create an invalid transfer.
 
 ### Data Layer
 - `TransactionRepository.createTransfer()` — insert transfer baru
