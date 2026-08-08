@@ -335,7 +335,10 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
               children: [
                 if (_selectedCategoryIcon != null) ...[
                   Icon(
-                    AppIcons.forCategory(_selectedCategoryIcon),
+                    AppIcons.forCategory(
+                      _selectedCategoryIcon,
+                      categoryName: _selectedCategoryName,
+                    ),
                     size: 20,
                     color: typeColor,
                   ),

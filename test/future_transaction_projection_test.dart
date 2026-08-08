@@ -22,24 +22,29 @@ void main() {
     () {
       final projection = FutureTransactionProjection.fromFutureTransactions(
         storedWalletTotal: 1260000,
+        activeWalletIds: {'wallet-active'},
         today: DateTime(2026, 8, 8),
         transactions: [
           FutureTransactionImpact(
+            walletId: 'wallet-active',
             transactionDate: DateTime(2026, 8, 9),
             type: TransactionType.income,
             amount: 300000,
           ),
           FutureTransactionImpact(
+            walletId: 'wallet-active',
             transactionDate: DateTime(2026, 8, 31),
             type: TransactionType.expense,
             amount: 100000,
           ),
           FutureTransactionImpact(
+            walletId: 'wallet-active',
             transactionDate: DateTime(2026, 9, 2),
             type: TransactionType.income,
             amount: 200000,
           ),
           FutureTransactionImpact(
+            walletId: 'wallet-active',
             transactionDate: DateTime(2026, 8, 8),
             type: TransactionType.expense,
             amount: 900000,
@@ -58,14 +63,17 @@ void main() {
   test('net-zero scheduled records still retain their future count', () {
     final projection = FutureTransactionProjection.fromFutureTransactions(
       storedWalletTotal: 500000,
+      activeWalletIds: {'wallet-active'},
       today: DateTime(2026, 8, 8),
       transactions: [
         FutureTransactionImpact(
+          walletId: 'wallet-active',
           transactionDate: DateTime(2026, 8, 9),
           type: TransactionType.income,
           amount: 100000,
         ),
         FutureTransactionImpact(
+          walletId: 'wallet-active',
           transactionDate: DateTime(2026, 8, 10),
           type: TransactionType.expense,
           amount: 100000,
@@ -79,6 +87,36 @@ void main() {
     expect(projection.currentBalance, 500000);
     expect(projection.endOfCurrentMonthBalance, 500000);
   });
+
+  test(
+    'future impacts from inactive wallets do not affect active balances',
+    () {
+      final projection = FutureTransactionProjection.fromFutureTransactions(
+        storedWalletTotal: 900000,
+        activeWalletIds: {'wallet-active'},
+        today: DateTime(2026, 8, 8),
+        transactions: [
+          FutureTransactionImpact(
+            walletId: 'wallet-active',
+            transactionDate: DateTime(2026, 8, 9),
+            type: TransactionType.expense,
+            amount: 100000,
+          ),
+          FutureTransactionImpact(
+            walletId: 'wallet-inactive',
+            transactionDate: DateTime(2026, 8, 10),
+            type: TransactionType.income,
+            amount: 900000,
+          ),
+        ],
+      );
+
+      expect(projection.futureTransactionCount, 1);
+      expect(projection.futureNet, -100000);
+      expect(projection.currentBalance, 1000000);
+      expect(projection.endOfCurrentMonthBalance, 900000);
+    },
+  );
 
   testWidgets('future transactions are marked in both list and detail', (
     tester,
@@ -146,7 +184,7 @@ void main() {
       categoryId: 'category-donation',
       type: TransactionType.expense,
       categoryName: 'Donasi Keluarga yang Panjang',
-      icon: 'donasi',
+      icon: 'category',
       color: '#E53935',
     );
 
@@ -179,12 +217,72 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.byIcon(AppIcons.forCategory('donasi')), findsOneWidget);
+      expect(
+        find.byIcon(
+          AppIcons.forCategory('category', categoryName: category.categoryName),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Donasi Keluarga yang Panjang'), findsOneWidget);
     }
 
     await tester.binding.setSurfaceSize(null);
   });
+
+  testWidgets(
+    'category tile centers its content at target widths and text scale',
+    (tester) async {
+      final category = CategoryEntity(
+        categoryId: 'category-centered',
+        type: TransactionType.expense,
+        categoryName: 'Donasi Keluarga yang Panjang',
+        icon: 'category',
+        color: '#E53935',
+      );
+
+      for (final width in [360.0, 393.0, 412.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 852));
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.getLightTheme(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(1.3)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: (width - 48) / 3,
+                  height: 124,
+                  child: CategoryOptionTile(
+                    category: category,
+                    selected: true,
+                    onTap: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        final tileCenter = tester.getCenter(find.byType(CategoryOptionTile));
+        final contentCenter = tester.getCenter(
+          find.byKey(
+            const ValueKey('category-option-content-category-centered'),
+          ),
+        );
+        expect((tileCenter.dx - contentCenter.dx).abs(), lessThanOrEqualTo(1));
+        expect((tileCenter.dy - contentCenter.dy).abs(), lessThanOrEqualTo(1));
+        expect(find.byIcon(AppIcons.selected), findsOneWidget);
+      }
+
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
 }
 
 TransactionEntity _transaction({required String id, required DateTime date}) {

@@ -61,15 +61,15 @@ The controllers contain only form state and small mutations. They do not own a `
 | `cashbookBalanceProvider` | `FutureProvider.family<int, String>` | Named per-cashbook balance provider for cashbook rows; avoids creating a new anonymous provider on every rebuild |
 | `futureTransactionProjectionProvider` | `FutureProvider<FutureTransactionProjection>` | Active cashbook; derives today's balance and end-of-current-month projection from future income/expense using integer Rupiah |
 
-### Tier 6 — Transaction Data (FutureProvider + StateProvider)
+### Tier 6 — Transaction Data (StreamProvider + Provider + StateProvider)
 
 | Provider | Type | Notes |
 |---|---|---|
 | `transactionFilterProvider` | `StateProvider` | Holds `{type, month}` filter state |
 | `selectedMonthProvider` | `StateProvider<DateTime>` | Selected month in transaction list |
 | `transactionHistorySegmentProvider` | `StateProvider<TransactionHistorySegment>` | UI segment state for All / Income / Expense / Transfer |
-| `transactionsProvider` | `FutureProvider<List<TransactionEntity>>` | Reads the transaction filter and `selectedMonthProvider` |
-| `transactionListItemsProvider` | `FutureProvider<List<TransactionListItem>>` | Precomputes grouped rows for transaction list UI; keeps grouping work out of `TransactionListScreen.build()` |
+| `transactionsProvider` | `StreamProvider<List<TransactionEntity>>` | Reads the transaction filter and `selectedMonthProvider` |
+| `transactionListItemsProvider` | `Provider<AsyncValue<List<TransactionListItem>>>` | Transforms the transaction stream into grouped UI rows outside `TransactionListScreen.build()` |
 | `transactionDetailProvider` | `FutureProvider.family<TransactionEntity, String>` | Fetches fresh transaction detail by `transactionId` (with wallet/category joins) |
 | `monthlySummaryProvider` | `FutureProvider<Map>` | Income/expense totals for selected month; delegates to `TransactionRepository.getMonthlySummaryForReport()` |
 | `categoriesProvider` | `FutureProvider.family` | Keyed by `cashbookId` |

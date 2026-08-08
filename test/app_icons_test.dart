@@ -75,6 +75,23 @@ void main() {
       expect(AppIcons.forCategory('unknown-key'), AppIcons.categoryFallback);
     });
 
+    test(
+      'uses category names when a stored icon key is generic or unknown',
+      () {
+        expect(
+          AppIcons.forCategory('category', categoryName: 'Donasi'),
+          Icons.volunteer_activism_rounded,
+        );
+        expect(
+          AppIcons.forCategory('legacy-unknown', categoryName: 'Bensin'),
+          Icons.local_gas_station_rounded,
+        );
+        expect(AppIcons.categoryKeyForName('Donasi'), 'donasi');
+        expect(AppIcons.categoryKeyForName('Bensin Motor'), 'bensin');
+        expect(AppIcons.categoryKeyForName('Kategori Pribadi'), 'category');
+      },
+    );
+
     test('uses the restrained Phase 2 icon-size scale', () {
       expect(AppIconSize.small, 18);
       expect(AppIconSize.regular, 24);

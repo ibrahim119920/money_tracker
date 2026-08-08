@@ -165,10 +165,46 @@ abstract final class AppIcons {
 
   /// Maps persisted category icon keys without modifying the stored value.
   ///
-  /// Unknown, empty, and unsupported keys intentionally use a neutral fallback.
-  static IconData forCategory(String? key) {
+  /// Older user categories can have a generic or unknown icon key. When the
+  /// category name is available, it is used as a second lookup before the
+  /// neutral fallback so familiar names retain a meaningful visual identity.
+  static IconData forCategory(String? key, {String? categoryName}) {
     final normalizedKey = _normalizeCategoryKey(key);
-    return _categoryIcons[normalizedKey] ?? categoryFallback;
+    final storedIcon = _categoryIcons[normalizedKey];
+    if (storedIcon != null && !_isGenericCategoryKey(normalizedKey)) {
+      return storedIcon;
+    }
+
+    final normalizedName = categoryKeyForName(categoryName ?? '');
+    final nameIcon = _categoryIcons[normalizedName];
+    if (nameIcon != null && !_isGenericCategoryKey(normalizedName)) {
+      return nameIcon;
+    }
+
+    return storedIcon ?? categoryFallback;
+  }
+
+  /// Returns a persisted icon key for a newly created category name.
+  ///
+  /// Exact aliases are preferred, then individual words in longer Indonesian
+  /// category names. Unknown names retain the neutral `category` key.
+  static String categoryKeyForName(String categoryName) {
+    final normalizedName = _normalizeCategoryKey(categoryName);
+    if (_isMeaningfulCategoryKey(normalizedName)) return normalizedName;
+
+    for (final segment in normalizedName.split('_')) {
+      if (_isMeaningfulCategoryKey(segment)) return segment;
+    }
+
+    return 'category';
+  }
+
+  static bool _isMeaningfulCategoryKey(String key) {
+    return !_isGenericCategoryKey(key) && _categoryIcons.containsKey(key);
+  }
+
+  static bool _isGenericCategoryKey(String key) {
+    return key.isEmpty || key == 'category';
   }
 
   static String _normalizeCategoryKey(String? key) {

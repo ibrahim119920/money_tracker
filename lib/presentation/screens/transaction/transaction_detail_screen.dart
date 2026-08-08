@@ -141,6 +141,7 @@ class TransactionDetailScreen extends ConsumerWidget {
                       _DetailRow(
                         icon: AppIcons.forCategory(
                           detailTransaction.categoryIcon,
+                          categoryName: detailTransaction.categoryName,
                         ),
                         label: 'Kategori',
                         value: detailTransaction.categoryName ?? '-',

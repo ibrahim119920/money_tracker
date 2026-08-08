@@ -652,19 +652,35 @@ class TransactionRepository {
 
       final wallets = await _client
           .from('wallets')
-          .select('current_balance')
+          .select('wallet_id, current_balance')
           .eq('cashbook_id', cashbookId)
           .eq('is_active', true);
+      final activeWalletRows = wallets as List<dynamic>;
       final storedWalletTotal = _sumIntField(
-        wallets as List<dynamic>,
+        activeWalletRows,
         'current_balance',
       );
+      final activeWalletIds = <String>{
+        for (final wallet in activeWalletRows)
+          if (wallet['wallet_id'] is String) wallet['wallet_id'] as String,
+      };
+
+      if (activeWalletIds.isEmpty) {
+        return const FutureTransactionProjection(
+          currentBalance: 0,
+          endOfCurrentMonthBalance: 0,
+          futureNet: 0,
+          currentMonthFutureNet: 0,
+          futureTransactionCount: 0,
+        );
+      }
 
       final transactions = await _client
           .from('transactions')
-          .select('type, amount, transaction_date')
+          .select('wallet_id, type, amount, transaction_date')
           .eq('cashbook_id', cashbookId)
           .eq('is_deleted', false)
+          .inFilter('wallet_id', activeWalletIds.toList(growable: false))
           .gte('transaction_date', _dateOnly(firstFutureDay));
 
       final impacts = <FutureTransactionImpact>[];
@@ -673,11 +689,16 @@ class TransactionRepository {
         final type = TransactionType.fromString(data['type'] as String? ?? '');
         final amount = data['amount'];
         final transactionDate = data['transaction_date'];
-        if (type == null || amount is! int || transactionDate is! String) {
+        final walletId = data['wallet_id'];
+        if (type == null ||
+            amount is! int ||
+            transactionDate is! String ||
+            walletId is! String) {
           continue;
         }
         impacts.add(
           FutureTransactionImpact(
+            walletId: walletId,
             transactionDate: DateTime.parse(transactionDate),
             type: type,
             amount: amount,
@@ -687,6 +708,7 @@ class TransactionRepository {
 
       return FutureTransactionProjection.fromFutureTransactions(
         storedWalletTotal: storedWalletTotal,
+        activeWalletIds: activeWalletIds,
         transactions: impacts,
         today: localToday,
       );

@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 8, 2026 (Sprint 4.31 - Dashboard Future Transactions & History)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 8, 2026 (Sprint 4.31.1 - Projection & Category Accuracy Fixes)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -77,8 +77,8 @@
 | `lib/presentation/providers/providers.dart` | `categoriesProvider` | `FutureProvider.family` | By cashbookId |
 | `lib/presentation/providers/providers.dart` | `transactionFilterProvider` | `StateProvider` | Filter (tipe, bulan) |
 | `lib/presentation/providers/providers.dart` | `transactionHistorySegmentProvider` | `StateProvider<TransactionHistorySegment>` | Segmen All / Income / Expense / Transfer |
-| `lib/presentation/providers/providers.dart` | `transactionsProvider` | `FutureProvider` | Transaksi dengan filter |
-| `lib/presentation/providers/providers.dart` | `transactionListItemsProvider` | `FutureProvider` | Daftar transaksi yang sudah dikelompokkan per tanggal untuk UI; grouping tidak dilakukan di build widget |
+| `lib/presentation/providers/providers.dart` | `transactionsProvider` | `StreamProvider<List<TransactionEntity>>` | Transaksi dengan filter |
+| `lib/presentation/providers/providers.dart` | `transactionListItemsProvider` | `Provider<AsyncValue<List<TransactionListItem>>>` | Daftar transaksi yang sudah dikelompokkan per tanggal untuk UI; grouping tidak dilakukan di build widget |
 | `lib/presentation/providers/providers.dart` | `transactionDetailProvider` | `FutureProvider.family<TransactionEntity, String>` | Detail transaksi by `transactionId` + join wallet/category |
 | `lib/presentation/providers/providers.dart` | `selectedMonthProvider` | `StateProvider<DateTime>` | Bulan yg dipilih di transaction list |
 | `lib/presentation/providers/providers.dart` | `monthlySummaryProvider` | `FutureProvider` | Summary income/expense setiap bulan; delegate ke `TransactionRepository.getMonthlySummaryForReport()` |
@@ -104,10 +104,10 @@
 | `lib/presentation/screens/wallet/wallet_list_screen.dart` | `WalletListScreen`, `WalletListItem` | ✅ |
 | `lib/presentation/screens/wallet/wallet_form_screen.dart` | `WalletFormScreen` | ✅ |
 | `lib/presentation/screens/wallet/wallet_detail_screen.dart` | `WalletDetailScreen`, `_walletMonthlySummaryProvider`, `_walletTransactionsProvider` | ✅ — loading summary/transactions use lightweight placeholders |
-| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_TransferHistoryList`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat grouped rows, four equal history segments, and month-scoped transfer rows |
+| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_TransferHistorySummary`, `_TransferHistoryTile`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat grouped rows, four equal history segments, and month-scoped transfer rows |
 | `lib/presentation/screens/transaction/transaction_add_flow_screen.dart` | `TransactionAddFlowScreen` | ✅ — sequential income/expense add with scheduled dates and shared category creation |
 | `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField` | ✅ — existing edit form remains at `/transactions/form`; uses shared category picker and scheduled dates |
-| `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow`, `FutureTransactionBadge` | ✅ — marks scheduled future income/expense accessibly |
+| `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ — uses the shared `FutureTransactionBadge` from `transaction_tile.dart` for scheduled income/expense |
 | `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen` | ✅ — sequential five-step transfer add flow |
 | `lib/presentation/screens/transfer/transfer_history_screen.dart` | `TransferHistoryScreen` | ✅ — dedicated `/transfer/history` history screen |
 | `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_ReportSummarySurface`, `_PieChartSection`, `_ReportTypeSegmentedControl`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ — tonal grouped surfaces, compact navigation, semantic chart controls; supports standalone route and embedded dashboard tab |
@@ -759,6 +759,14 @@ Future<void> _createTransaction() async {
 - [x] Perbarui `docs/feature-modules.md`, `docs/state-management.md`, `docs/project-map.md`, `docs/ui-analysis-android.md`, dan file dictionary ini.
 - [x] Validasi lokal: `flutter pub get`, format check, analyzer, focused tests, full `flutter test` (43 tests), `flutter build apk --debug`, dan `git diff --check` lulus. Analyzer/build memakai konfigurasi dummy lokal yang ignored karena key Supabase tidak tersedia di checkout; file tersebut dihapus sebelum commit.
 - [ ] Pemeriksaan perangkat Android/E2E masih memerlukan sesi backend nyata; coverage lokal memakai provider override, focused regression tests, dan golden visual QA.
+
+### Sprint 4.31.1 - Projection & Category Accuracy Fixes DONE (August 8, 2026)
+**Items:**
+- [x] Samakan populasi proyeksi dengan saldo aktif: query scheduled transaction dibatasi ke `wallet_id` aktif, dan model proyeksi mempertahankan guard set dompet aktif.
+- [x] Pusatkan blok icon/teks `CategoryOptionTile` pada tile penuh tanpa menutup selected badge; tambahkan regression layout 360/393/412 dp pada text scale 1.3.
+- [x] Turunkan key icon kategori baru dari nama yang dikenal dan gunakan nama kategori sebagai fallback untuk stored key generik/unknown.
+- [x] Koreksi tipe provider dan simbol presentation pada dokumentasi agar sesuai dengan implementasi StreamProvider/derived Provider saat ini.
+- [x] Validasi retry: format check, analyzer, focused projection/category tests, full `flutter test` (46 tests), `flutter build apk --debug`, dan `git diff --check`; konfigurasi dummy lokal untuk key Supabase dihapus sebelum commit.
 
 ### Sprint 4.30 - Bottom Navigation Rework DONE (August 8, 2026)
 **Items:**

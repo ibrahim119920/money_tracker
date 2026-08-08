@@ -247,11 +247,13 @@ class TransferEntity {
 
 /// Minimal transaction data used to calculate a date-based balance projection.
 class FutureTransactionImpact {
+  final String walletId;
   final DateTime transactionDate;
   final TransactionType type;
   final int amount;
 
   const FutureTransactionImpact({
+    required this.walletId,
     required this.transactionDate,
     required this.type,
     required this.amount,
@@ -283,6 +285,7 @@ class FutureTransactionProjection {
 
   factory FutureTransactionProjection.fromFutureTransactions({
     required int storedWalletTotal,
+    required Set<String> activeWalletIds,
     required Iterable<FutureTransactionImpact> transactions,
     DateTime? today,
   }) {
@@ -294,6 +297,8 @@ class FutureTransactionProjection {
     var futureTransactionCount = 0;
 
     for (final transaction in transactions) {
+      if (!activeWalletIds.contains(transaction.walletId)) continue;
+
       final date = DateTime(
         transaction.transactionDate.year,
         transaction.transactionDate.month,

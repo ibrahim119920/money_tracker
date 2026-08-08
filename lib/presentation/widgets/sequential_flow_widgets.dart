@@ -429,31 +429,42 @@ class CategoryOptionTile extends StatelessWidget {
               ),
               child: Stack(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          AppIcons.forCategory(category.icon),
-                          size: AppIconSize.object,
-                          color: selected ? foreground : accent,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          category.categoryName,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(
-                                color: foreground,
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: Center(
+                        child: Column(
+                          key: ValueKey(
+                            'category-option-content-${category.categoryId}',
+                          ),
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Icon(
+                              AppIcons.forCategory(
+                                category.icon,
+                                categoryName: category.categoryName,
                               ),
+                              size: AppIconSize.object,
+                              color: selected ? foreground : accent,
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              category.categoryName,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(
+                                    color: foreground,
+                                    fontWeight: selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                   if (selected)
@@ -562,7 +573,7 @@ class _CategoryPickerSheetState extends ConsumerState<CategoryPickerSheet> {
             cashbookId: widget.cashbookId,
             type: widget.type,
             categoryName: categoryName,
-            icon: 'category',
+            icon: AppIcons.categoryKeyForName(categoryName),
             color: widget.type == TransactionType.income
                 ? '#43A047'
                 : '#E53935',

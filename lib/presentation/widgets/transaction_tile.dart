@@ -71,7 +71,10 @@ class TransactionTile extends StatelessWidget {
                             borderRadius: AppRadius.smallBorder,
                           ),
                           child: Icon(
-                            AppIcons.forCategory(transaction.categoryIcon),
+                            AppIcons.forCategory(
+                              transaction.categoryIcon,
+                              categoryName: transaction.categoryName,
+                            ),
                             color: typeColor,
                             size: AppIconSize.small + 2,
                           ),
