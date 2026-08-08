@@ -10,7 +10,9 @@ import '../../widgets/app_section_header.dart';
 import '../../widgets/money_metric.dart';
 
 class MonthlyReportScreen extends ConsumerWidget {
-  const MonthlyReportScreen({super.key});
+  final bool embedded;
+
+  const MonthlyReportScreen({super.key, this.embedded = false});
 
   static const List<String> _monthNames = [
     'Jan',
@@ -45,6 +47,10 @@ class MonthlyReportScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    const body = _MonthlyReportBody();
+
+    if (embedded) return body;
+
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
@@ -58,7 +64,7 @@ class MonthlyReportScreen extends ConsumerWidget {
         ),
         elevation: 0,
       ),
-      body: const _MonthlyReportBody(),
+      body: body,
     );
   }
 }

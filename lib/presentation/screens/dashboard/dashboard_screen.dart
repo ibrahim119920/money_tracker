@@ -9,6 +9,9 @@ import '../../icons/app_icons.dart';
 import '../../providers/providers.dart';
 import '../../widgets/app_section_header.dart';
 import '../../widgets/money_metric.dart';
+import '../report/monthly_report_screen.dart';
+import '../settings/settings_screen.dart';
+import '../transaction/transaction_list_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -37,50 +40,124 @@ class _DashboardBootstrap extends ConsumerWidget {
   }
 }
 
-class _DashboardScaffold extends ConsumerWidget {
+class _DashboardScaffold extends ConsumerStatefulWidget {
   final VoidCallback onAddTransaction;
 
   const _DashboardScaffold({required this.onAddTransaction});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DashboardScaffold> createState() => _DashboardScaffoldState();
+}
+
+class _DashboardScaffoldState extends ConsumerState<_DashboardScaffold> {
+  static const _tabCount = 4;
+
+  late final List<Widget?> _tabs;
+  int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = List<Widget?>.filled(_tabCount, null);
+    _tabs[0] = _buildDashboardTab();
+  }
+
+  Widget _buildDashboardTab() {
+    return SafeArea(
+      top: false,
+      child: RefreshIndicator(
+        onRefresh: _refreshDashboard,
+        child: const _DashboardBody(),
+      ),
+    );
+  }
+
+  Widget _buildTab(int index) {
+    switch (index) {
+      case 1:
+        return const TransactionListScreen(embedded: true);
+      case 2:
+        return const MonthlyReportScreen(embedded: true);
+      case 3:
+        return const SettingsScreen(embedded: true);
+      case 0:
+      default:
+        return _buildDashboardTab();
+    }
+  }
+
+  void _onDestinationSelected(int index) {
+    if (index == _selectedIndex) return;
+
+    setState(() {
+      _selectedIndex = index;
+      _tabs[index] ??= _buildTab(index);
+    });
+  }
+
+  Future<void> _refreshDashboard() async {
+    ref.invalidate(walletsProvider);
+    ref.invalidate(totalBalanceProvider);
+    ref.invalidate(monthlySummaryProvider);
+    await Future.wait([
+      ref.read(walletsProvider.future).catchError((_) => <WalletEntity>[]),
+      ref.read(totalBalanceProvider.future).catchError((_) => 0),
+      ref
+          .read(monthlySummaryProvider.future)
+          .catchError((_) => <String, int>{}),
+    ]);
+  }
+
+  String get _appBarTitle {
+    switch (_selectedIndex) {
+      case 1:
+        return 'Riwayat Transaksi';
+      case 2:
+        return 'Laporan Keuangan';
+      case 3:
+        return AppStrings.settingsTitle;
+      case 0:
+      default:
+        return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: _selectedIndex == 2
+          ? colorScheme.surfaceContainerLowest
+          : colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: colorScheme.surfaceContainerLow,
+        backgroundColor: _selectedIndex == 0
+            ? colorScheme.surfaceContainerLow
+            : colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const _CashbookSwitcher(),
-        actions: const [_DashboardAvatar()],
+        title: _selectedIndex == 0
+            ? const _CashbookSwitcher()
+            : Text(_appBarTitle),
+        actions: _selectedIndex == 0 ? const [_DashboardAvatar()] : null,
       ),
-      body: SafeArea(
-        top: false,
-        child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(walletsProvider);
-            ref.invalidate(totalBalanceProvider);
-            ref.invalidate(monthlySummaryProvider);
-            await Future.wait([
-              ref
-                  .read(walletsProvider.future)
-                  .catchError((_) => <WalletEntity>[]),
-              ref.read(totalBalanceProvider.future).catchError((_) => 0),
-              ref
-                  .read(monthlySummaryProvider.future)
-                  .catchError((_) => <String, int>{}),
-            ]);
-          },
-          child: const _DashboardBody(),
+      body: SizedBox.expand(
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: [for (final tab in _tabs) tab ?? const SizedBox.shrink()],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: onAddTransaction,
-        icon: const Icon(AppIcons.add),
-        label: const Text('Transaksi Baru'),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: widget.onAddTransaction,
+              icon: const Icon(AppIcons.add),
+              label: const Text('Transaksi Baru'),
+            )
+          : null,
+      bottomNavigationBar: _DashboardBottomNav(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _onDestinationSelected,
       ),
-      bottomNavigationBar: const _DashboardBottomNav(),
     );
   }
 }
@@ -139,27 +216,19 @@ class _DashboardAvatar extends ConsumerWidget {
 }
 
 class _DashboardBottomNav extends StatelessWidget {
-  const _DashboardBottomNav();
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  const _DashboardBottomNav({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
     return NavigationBar(
-      selectedIndex: 0,
-      onDestinationSelected: (index) {
-        switch (index) {
-          case 0:
-            break;
-          case 1:
-            context.push('/transactions');
-            break;
-          case 2:
-            context.push('/report/monthly');
-            break;
-          case 3:
-            context.push('/settings');
-            break;
-        }
-      },
+      selectedIndex: selectedIndex,
+      onDestinationSelected: onDestinationSelected,
       destinations: const [
         NavigationDestination(
           icon: Icon(AppIcons.dashboard),
