@@ -210,6 +210,39 @@ final totalBalanceProvider = FutureProvider<int>((ref) async {
   return repository.getTotalBalance(activeCashbook.cashbookId);
 });
 
+/// Stable, cacheable balance for a cashbook row in the cashbook list.
+///
+/// A named family keeps a list item from constructing a fresh provider during
+/// every rebuild, which previously left the subtitle at "Menghitung...".
+final cashbookBalanceProvider = FutureProvider.family<int, String>((
+  ref,
+  cashbookId,
+) async {
+  final repository = ref.watch(cashbookRepositoryProvider);
+  return repository.getTotalBalance(cashbookId);
+});
+
+/// Current and end-of-month balances after removing scheduled transactions
+/// from trigger-updated wallet totals.
+final futureTransactionProjectionProvider =
+    FutureProvider<FutureTransactionProjection>((ref) async {
+      final activeCashbook = ref.watch(activeCashbookProvider);
+      if (activeCashbook == null) {
+        return const FutureTransactionProjection(
+          currentBalance: 0,
+          endOfCurrentMonthBalance: 0,
+          futureNet: 0,
+          currentMonthFutureNet: 0,
+          futureTransactionCount: 0,
+        );
+      }
+
+      final repository = ref.watch(transactionRepositoryProvider);
+      return repository.getFutureTransactionProjection(
+        cashbookId: activeCashbook.cashbookId,
+      );
+    });
+
 // ============================================================================
 // CATEGORY PROVIDERS
 // ============================================================================
@@ -217,22 +250,9 @@ final totalBalanceProvider = FutureProvider<int>((ref) async {
 /// Categories Provider - Kategorisasi transaksi (system + user)
 final categoriesProvider = FutureProvider.family<List<CategoryEntity>, String?>(
   (ref, cashbookId) async {
-    final client = ref.watch(supabaseClientProvider);
-
-    try {
-      final response = await client
-          .from('categories')
-          .select()
-          .or('cashbook_id.is.null,cashbook_id.eq.$cashbookId')
-          .order('sort_order', ascending: true);
-
-      final categories = (response as List).map(
-        (e) => CategoryModel.fromJson(e).toEntity(),
-      );
-      return categories.toList();
-    } catch (e) {
-      throw Exception('Failed to fetch categories: $e');
-    }
+    if (cashbookId == null) return [];
+    final repository = ref.watch(transactionRepositoryProvider);
+    return repository.getCategories(cashbookId);
   },
 );
 
@@ -291,6 +311,7 @@ final transactionFilterProvider = StateProvider<TransactionFilter>((ref) {
 final transactionsProvider = StreamProvider<List<TransactionEntity>>((ref) {
   final activeCashbook = ref.watch(activeCashbookProvider);
   final filter = ref.watch(transactionFilterProvider);
+  final selectedMonth = ref.watch(selectedMonthProvider);
   final repository = ref.watch(transactionRepositoryProvider);
 
   if (activeCashbook == null) return const Stream.empty();
@@ -301,8 +322,16 @@ final transactionsProvider = StreamProvider<List<TransactionEntity>>((ref) {
     type: filter.type?.value,
     walletId: filter.walletId,
     categoryId: filter.categoryId,
-    startDate: filter.startDate?.toIso8601String().split('T')[0],
-    endDate: filter.endDate?.toIso8601String().split('T')[0],
+    startDate: DateTime(
+      selectedMonth.year,
+      selectedMonth.month,
+      1,
+    ).toIso8601String().split('T')[0],
+    endDate: DateTime(
+      selectedMonth.year,
+      selectedMonth.month + 1,
+      0,
+    ).toIso8601String().split('T')[0],
   );
 });
 
@@ -418,6 +447,14 @@ final monthlySummaryProvider = FutureProvider<Map<String, int>>((ref) async {
   }
 });
 
+/// The fourth history segment is independent from income/expense filtering.
+enum TransactionHistorySegment { all, income, expense, transfer }
+
+final transactionHistorySegmentProvider =
+    StateProvider<TransactionHistorySegment>(
+      (ref) => TransactionHistorySegment.all,
+    );
+
 // ============================================================================
 // REPORT PROVIDERS
 // ============================================================================
@@ -482,4 +519,19 @@ final transfersProvider = FutureProvider<List<TransferEntity>>((ref) async {
 
   final repository = ref.watch(transactionRepositoryProvider);
   return repository.getTransfersByCashbook(activeCashbook.cashbookId);
+});
+
+/// Transfers limited to the month selected in transaction history.
+final selectedMonthTransfersProvider = FutureProvider<List<TransferEntity>>((
+  ref,
+) async {
+  final activeCashbook = ref.watch(activeCashbookProvider);
+  final selectedMonth = ref.watch(selectedMonthProvider);
+  if (activeCashbook == null) return [];
+
+  final repository = ref.watch(transactionRepositoryProvider);
+  return repository.getTransfersByCashbook(
+    activeCashbook.cashbookId,
+    month: selectedMonth,
+  );
 });

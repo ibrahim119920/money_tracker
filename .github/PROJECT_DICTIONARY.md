@@ -1,5 +1,5 @@
 # Money Tracker — Project Dictionary
-> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 8, 2026 (Sprint 4.30 - Bottom Navigation Merge Conflict Resolution)**
+> Panduan referensi cepat untuk Copilot. **Terakhir diperbarui: August 8, 2026 (Sprint 4.31.1 - Projection & Category Accuracy Fixes)**
 
 > **📖 Dokumentasi Lengkap**: Lihat `AGENTS.md` (entry point) dan folder `docs/` untuk dokumentasi arsitektur yang lebih detail dan AI-friendly.
 
@@ -20,7 +20,7 @@
 | `lib/core/constants/app_strings.dart` | `AppStrings` — semua string UI Bahasa Indonesia |
 | `lib/core/constants/supabase_keys.dart` | `SupabaseKeys.supabaseUrl`, `SupabaseKeys.supabaseAnonKey` |
 | `lib/core/utils/currency_formatter.dart` | `CurrencyFormatter.format()`, `.parse()`, `.formatCompact()` |
-| `lib/core/utils/date_formatter.dart` | `DateFormatter.formatLongDate()`, `.formatShortDate()`, `.formatMonthYear()`, `.relative()` |
+| `lib/core/utils/date_formatter.dart` | `DateFormatter.formatLongDate()`, `.formatShortDate()`, `.formatMonthYear()`, `.relative()`, `.isFutureDate()` (local calendar day) |
 | `lib/core/utils/money_amount.dart` | Integer Rupiah keypad helpers, leading-zero normalization, and BIGINT overflow guard |
 | `lib/core/utils/validators.dart` | `Validators.validateEmail/Password/Amount/Name/Required/Notes/...` |
 
@@ -31,7 +31,7 @@
 | File | Class / Konten |
 |---|---|
 | `lib/data/models/models.dart` | Barrel: `UserModel`, `CashbookModel`, `WalletModel`, `CategoryModel`, `TransactionModel`, `TransferModel` |
-| `lib/data/repositories/cashbook_wallet_repository.dart` | `CashbookRepository`, `WalletRepository`, `TransactionRepository`, `SettingsRepository` |
+| `lib/data/repositories/cashbook_wallet_repository.dart` | `CashbookRepository`, `WalletRepository`, `TransactionRepository` (database category CRUD, scoped transfers, future projection), `SettingsRepository` |
 
 **Setiap model** punya: `fromJson()`, `toJson()`, `toEntity()`
 
@@ -41,7 +41,7 @@
 
 | File | Class / Konten |
 |---|---|
-| `lib/domain/entities/entities.dart` | `UserEntity`, `CashbookEntity`, `WalletEntity`, `CategoryEntity`, `TransactionEntity`, `TransferEntity`, `RecurringTransactionEntity` |
+| `lib/domain/entities/entities.dart` | `UserEntity`, `CashbookEntity`, `WalletEntity`, `CategoryEntity`, `TransactionEntity`, `TransferEntity`, `RecurringTransactionEntity`, `FutureTransactionImpact`, `FutureTransactionProjection` |
 | `lib/domain/entities/entities.dart` | Enum: `WalletType` (cash/bankAcc/eWallet), `TransactionType` (income/expense), `RecurringFrequency` |
 | `lib/domain/usecases/` | **KOSONG** — belum diimplementasi |
 
@@ -52,7 +52,7 @@
 ### Icon Foundation (Phase 2)
 | File | Class / Konten |
 |---|---|
-| lib/presentation/icons/app_icons.dart | AppIcons — matching outlined/rounded navigation pairs, Dashboard actions, transaction and WalletType mappings, normalized category aliases, and deterministic fallbacks; stored keys remain unchanged |
+| lib/presentation/icons/app_icons.dart | AppIcons — matching outlined/rounded navigation pairs, Dashboard actions, transaction and WalletType mappings, expanded normalized category aliases, and deterministic fallbacks; stored keys remain unchanged |
 | test/app_icons_test.dart | Focused mapping, fallback, normalization, determinism, and 18/24/26/30/36 dp token coverage |
 | test/dashboard_icon_system_test.dart | Dashboard light/dark golden, responsive widths 360/393/412, text scale 1.0/1.3, semantics, and direct transaction-action coverage |
 | test/transaction_filter_segmented_control_test.dart | 360 dp equal-width type-filter measurement, overflow safety, selected semantics/colors, and provider-state interaction coverage |
@@ -72,14 +72,18 @@
 | `lib/presentation/providers/providers.dart` | `defaultCashbookProvider` | `FutureProvider` | ⚡ Auto-load default cashbook & set ke active |
 | `lib/presentation/providers/providers.dart` | `walletsProvider` | `FutureProvider` | Dompet di active cashbook; delegate ke `WalletRepository.getWallets()` |
 | `lib/presentation/providers/providers.dart` | `totalBalanceProvider` | `FutureProvider` | Total saldo semua dompet; delegate ke `CashbookRepository.getTotalBalance()` |
+| `lib/presentation/providers/providers.dart` | `cashbookBalanceProvider` | `FutureProvider.family<int, String>` | Saldo per cashbook untuk row list yang stabil saat rebuild |
+| `lib/presentation/providers/providers.dart` | `futureTransactionProjectionProvider` | `FutureProvider<FutureTransactionProjection>` | Saldo hari ini dan proyeksi akhir bulan, setelah future income/expense dikeluarkan dari trigger total |
 | `lib/presentation/providers/providers.dart` | `categoriesProvider` | `FutureProvider.family` | By cashbookId |
 | `lib/presentation/providers/providers.dart` | `transactionFilterProvider` | `StateProvider` | Filter (tipe, bulan) |
-| `lib/presentation/providers/providers.dart` | `transactionsProvider` | `FutureProvider` | Transaksi dengan filter |
-| `lib/presentation/providers/providers.dart` | `transactionListItemsProvider` | `FutureProvider` | Daftar transaksi yang sudah dikelompokkan per tanggal untuk UI; grouping tidak dilakukan di build widget |
+| `lib/presentation/providers/providers.dart` | `transactionHistorySegmentProvider` | `StateProvider<TransactionHistorySegment>` | Segmen All / Income / Expense / Transfer |
+| `lib/presentation/providers/providers.dart` | `transactionsProvider` | `StreamProvider<List<TransactionEntity>>` | Transaksi dengan filter |
+| `lib/presentation/providers/providers.dart` | `transactionListItemsProvider` | `Provider<AsyncValue<List<TransactionListItem>>>` | Daftar transaksi yang sudah dikelompokkan per tanggal untuk UI; grouping tidak dilakukan di build widget |
 | `lib/presentation/providers/providers.dart` | `transactionDetailProvider` | `FutureProvider.family<TransactionEntity, String>` | Detail transaksi by `transactionId` + join wallet/category |
 | `lib/presentation/providers/providers.dart` | `selectedMonthProvider` | `StateProvider<DateTime>` | Bulan yg dipilih di transaction list |
 | `lib/presentation/providers/providers.dart` | `monthlySummaryProvider` | `FutureProvider` | Summary income/expense setiap bulan; delegate ke `TransactionRepository.getMonthlySummaryForReport()` |
 | `lib/presentation/providers/providers.dart` | `transfersProvider` | `FutureProvider` | Transfer history; delegate ke `TransactionRepository.getTransfersByCashbook()` |
+| `lib/presentation/providers/providers.dart` | `selectedMonthTransfersProvider` | `FutureProvider<List<TransferEntity>>` | Transfer cashbook aktif yang dibatasi bulan riwayat terpilih |
 | `lib/presentation/providers/providers.dart` | `transactionDraftProvider` | `AutoDisposeNotifierProvider` | Typed sequential income/expense draft; integer amount and five-step fields |
 | `lib/presentation/providers/providers.dart` | `transferDraftProvider` | `AutoDisposeNotifierProvider` | Typed sequential transfer draft; clears conflicting destination |
 | `lib/presentation/providers/providers.dart` | `reportMonthProvider` | `StateProvider<DateTime>` | Bulan dipilih di halaman laporan |
@@ -95,15 +99,15 @@
 | `lib/presentation/screens/auth/register_screen.dart` | `RegisterScreen`, `_FieldLabel`, `_StepIndicator`, `_StepItem` | ✅ Lengkap — 4 fields, step indicator, terms checkbox, **auto-create cashbook default saat register** |
 | `lib/presentation/screens/cashbook/cashbook_list_screen.dart` | `CashbookListScreen`, `CashbookListItem` | ✅ |
 | `lib/presentation/screens/cashbook/cashbook_form_screen.dart` | `CashbookFormScreen` | ✅ |
-| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_DashboardScaffold`, `_DashboardBottomNav`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_MonthlySection`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — persistent four-tab shell; tab bodies switch in place and retain standalone deep-link routes |
+| `lib/presentation/screens/dashboard/dashboard_screen.dart` | `DashboardScreen`, `_DashboardScaffold`, `_DashboardBottomNav`, `_CashbookSwitcher`, `_TotalBalanceCard`, `_FutureBalanceProjection`, `_MonthlySection`, `_DashboardMonthNavigation`, `_WalletSection`, `_TutorialOverlay`, `_TutorialCard`, `_StepDot` | ✅ — persistent four-tab shell, scheduled balance projection, accessible vertical wallet cards, and shared month state |
 | `lib/presentation/screens/splash/loading_screen.dart` | `LoadingScreen` — pre-warm providers sebelum masuk Dashboard | ✅ — readiness check moved out of build |
 | `lib/presentation/screens/wallet/wallet_list_screen.dart` | `WalletListScreen`, `WalletListItem` | ✅ |
 | `lib/presentation/screens/wallet/wallet_form_screen.dart` | `WalletFormScreen` | ✅ |
 | `lib/presentation/screens/wallet/wallet_detail_screen.dart` | `WalletDetailScreen`, `_walletMonthlySummaryProvider`, `_walletTransactionsProvider` | ✅ — loading summary/transactions use lightweight placeholders |
-| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat transaction rows with grouped date hierarchy; equal-width type segments; loading uses placeholders |
-| `lib/presentation/screens/transaction/transaction_add_flow_screen.dart` | `TransactionAddFlowScreen` | ✅ — sequential income/expense add: amount, category, wallet, date, notes |
-| `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField`, `_CategoryPickerSheet` | ✅ — existing edit form remains at `/transactions/form` |
-| `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ |
+| `lib/presentation/screens/transaction/transaction_list_screen.dart` | `TransactionListScreen`, `_FilterBar`, `_TypeFilterSegmentedControl`, `_TransferHistorySummary`, `_TransferHistoryTile`, `_MonthNavigation`, `_SummaryBar`, `_DateHeader`, `_MonthPickerDialog` | ✅ — flat grouped rows, four equal history segments, and month-scoped transfer rows |
+| `lib/presentation/screens/transaction/transaction_add_flow_screen.dart` | `TransactionAddFlowScreen` | ✅ — sequential income/expense add with scheduled dates and shared category creation |
+| `lib/presentation/screens/transaction/transaction_form_screen.dart` | `TransactionFormScreen`, `_AmountField` | ✅ — existing edit form remains at `/transactions/form`; uses shared category picker and scheduled dates |
+| `lib/presentation/screens/transaction/transaction_detail_screen.dart` | `TransactionDetailScreen`, `_DetailRow` | ✅ — uses the shared `FutureTransactionBadge` from `transaction_tile.dart` for scheduled income/expense |
 | `lib/presentation/screens/transfer/transfer_screen.dart` | `TransferScreen` | ✅ — sequential five-step transfer add flow |
 | `lib/presentation/screens/transfer/transfer_history_screen.dart` | `TransferHistoryScreen` | ✅ — dedicated `/transfer/history` history screen |
 | `lib/presentation/screens/report/monthly_report_screen.dart` | `MonthlyReportScreen`, `_MonthPicker`, `_MonthYearPickerDialog`, `_SummarySection`, `_ReportSummarySurface`, `_PieChartSection`, `_ReportTypeSegmentedControl`, `_CategoryLegend`, `_BarChartSection`, `_LegendDot` | ✅ — tonal grouped surfaces, compact navigation, semantic chart controls; supports standalone route and embedded dashboard tab |
@@ -112,10 +116,10 @@
 ### Widgets
 | File | Class | Catatan |
 |---|---|---|
-| `lib/presentation/widgets/transaction_tile.dart` | `TransactionTile` (props: transaction, onTap, showWalletName, showDivider, dense) | Flat Android list row; semantic color dibatasi pada icon container dan amount, dengan divider opsional serta overflow nominal yang aman |
+| `lib/presentation/widgets/transaction_tile.dart` | `TransactionTile`, `FutureTransactionBadge` (props: transaction, onTap, showWalletName, showDivider, dense) | Flat Android list row with centralized category icon mapping, an accessible scheduled badge, semantic colors, divider option, and safe amount overflow |
 | `lib/presentation/widgets/app_section_header.dart` | `AppSectionHeader` | Header section ringkas dengan action opsional atau trailing widget; tanpa business logic |
 | `lib/presentation/widgets/money_metric.dart` | `MoneyMetric`, `MoneyMetricType` | Metric uang dengan nilai yang sudah diformat, semantic color, layout compact/regular, dan overflow aman |
-| `lib/presentation/widgets/sequential_flow_widgets.dart` | `SequentialFlowProgress`, `SequentialFlowNavigation`, `AmountKeypad`, `CategoryOptionTile`, `WalletOptionCard`, selection state shell | Shared sequential shell with purpose-specific selection cards and TalkBack semantics |
+| `lib/presentation/widgets/sequential_flow_widgets.dart` | `SequentialFlowProgress`, `SequentialFlowNavigation`, `AmountKeypad`, `CategoryOptionTile`, `CategoryPickerSheet`, `WalletOptionCard`, selection state shell | Shared sequential shell with responsive category picker, persisted category creation, purpose-specific selection cards, and TalkBack semantics |
 
 ### Sequential Draft State
 | File | Class | Catatan |
@@ -172,7 +176,7 @@
 | Fitur | Status | Catatan |
 |---|---|---|
 | **Auth (Landing/Login/Register)** | **✅ Lengkap** | Landing screen + anim, sign in/up, email verification handling, explicit redirect ke dashboard |
-| **Dashboard + Transaction List** | **✅ Lengkap** | Four in-place dashboard tabs (Dashboard, Transaksi, Laporan, Pengaturan), total balance, monthly summary, wallet carousel, add transaction FAB, filter by type/month |
+| **Dashboard + Transaction List** | **✅ Lengkap** | Four in-place tabs, current-vs-scheduled balance projection, month navigation, accessible vertical wallets, and four history segments including month-scoped transfer |
 | Cashbook CRUD | ✅ Lengkap | |
 | Wallet CRUD + Detail | ✅ Lengkap | |
 | Transaksi CRUD + Detail | ✅ Lengkap | Sequential add income/expense; `/transactions/form` tetap edit; name-null fallback diaudit |
@@ -209,10 +213,12 @@
    ├─ cashbooksProvider
    ├─ walletsProvider ← WATCHES: activeCashbookProvider
    ├─ categoriesProvider ← by cashbookId
-   ├─ transactionsProvider ← WATCHES: transactionFilterProvider
+   ├─ transactionsProvider ← WATCHES: transactionFilterProvider, selectedMonthProvider
+   ├─ futureTransactionProjectionProvider ← active cashbook scheduled income/expense
    ├─ monthlySummaryProvider
    ├─ totalBalanceProvider ← sums walletsProvider
-   └─ transfersProvider
+   ├─ transfersProvider
+   └─ selectedMonthTransfersProvider ← WATCHES: selectedMonthProvider
 ```
 
 **Critical:** `defaultCashbookProvider` auto-sets `activeCashbookProvider` pada first load, kemudian semua data providers menggunakannya.
@@ -244,17 +250,19 @@ ref.invalidate(transactionsProvider);         // list refresh
 ref.invalidate(walletsProvider);              // balance update
 ref.invalidate(totalBalanceProvider);         // dashboard refresh
 ref.invalidate(monthlySummaryProvider);       // summary recalc
+ref.invalidate(futureTransactionProjectionProvider); // scheduled-balance refresh
+ref.invalidate(cashbookBalanceProvider(cashbookId)); // stable cashbook-row balance
 ref.invalidate(categoriesProvider);           // jika ada perubahan kategori
 ```
 
 **Providers yang perlu di-invalidate setelah mutasi transaksi:**
-`transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`
+`transactionsProvider`, `walletsProvider`, `totalBalanceProvider`, `monthlySummaryProvider`, `futureTransactionProjectionProvider`, dan `cashbookBalanceProvider(cashbookId)`
 
 ---
 
 ## CATEGORY ICONS (string → IconData di TransactionTile)
 
-`makanan`, `transportasi`, `belanja`, `tagihan`, `hiburan`, `kesehatan`, `pendidikan`, `gaji`, `bisnis`, `investasi`, `transfer`, `lainnya`
+`makanan`, `minuman`, `transportasi`, `bensin`, `parkir`, `belanja`, `kebutuhan_harian`, `tagihan`, `langganan`, `hiburan`, `kesehatan`, `pendidikan`, `gaji`, `hadiah`, `donasi`, `bisnis`, `investasi`, `transfer`, `lainnya`
 
 ---
 
@@ -737,6 +745,28 @@ Future<void> _createTransaction() async {
 - [x] Tambahkan focused tests dan real-glyph light/dark goldens; validasi widths 360/393/412, text scale 1.0/1.3, mapping/fallback, semantics, dan full test suite lulus.
 - [x] dart format dijalankan pada file Dart milik fase ini; flutter analyze tidak menemukan error/warning (16 info lama tetap ada); git diff --check lulus.
 - [ ] Transaction History, Report, Forms, Settings, Auth, dan wallet screens tetap deferred ke fase berikutnya.
+
+### Sprint 4.31 - Dashboard Future Transactions & History DONE (August 8, 2026)
+**Items:**
+- [x] Izinkan income dan expense dijadwalkan pada tanggal mendatang, tetap memakai kalender lokal; transfer tetap dilarang pada masa depan di draft, picker, dan repository.
+- [x] Tambahkan `FutureTransactionProjection` berbasis `int` untuk mengeluarkan seluruh net scheduled income/expense dari saldo trigger, lalu menghitung proyeksi akhir bulan berjalan; transfer tidak ikut dihitung.
+- [x] Tampilkan transaksi future secara eksplisit di Dashboard, list, dan detail dengan badge/semantics yang dapat diakses; net-zero scheduled records tetap terlihat.
+- [x] Tambahkan `cashbookBalanceProvider` bernama, error saldo yang terlihat pengguna, dan invalidation balance/projection setelah mutasi yang relevan.
+- [x] Perluas alias `AppIcons` untuk kategori Indonesia/English umum; semua tile/form/detail memakai mapping pusat serta fallback aman.
+- [x] Jadikan `CategoryPickerSheet` shared dan responsif, dengan tambah kategori database-backed yang mengembalikan ID nyata, invalidates provider key yang tepat, lalu memilih kategori baru secara langsung.
+- [x] Ubah Dashboard ke kartu wallet vertikal yang dapat diakses, tambah navigasi bulan dengan tombol berikutnya disabled di bulan berjalan, dan sinkronkan month state dengan riwayat transaksi.
+- [x] Tambahkan segmen Transfer ke riwayat transaksi; daftar transfer dibatasi bulan aktif dan menjelaskan bahwa transfer tidak mengubah total saldo buku kas. `/transfer/history` tetap terpisah.
+- [x] Perbarui `docs/feature-modules.md`, `docs/state-management.md`, `docs/project-map.md`, `docs/ui-analysis-android.md`, dan file dictionary ini.
+- [x] Validasi lokal: `flutter pub get`, format check, analyzer, focused tests, full `flutter test` (43 tests), `flutter build apk --debug`, dan `git diff --check` lulus. Analyzer/build memakai konfigurasi dummy lokal yang ignored karena key Supabase tidak tersedia di checkout; file tersebut dihapus sebelum commit.
+- [ ] Pemeriksaan perangkat Android/E2E masih memerlukan sesi backend nyata; coverage lokal memakai provider override, focused regression tests, dan golden visual QA.
+
+### Sprint 4.31.1 - Projection & Category Accuracy Fixes DONE (August 8, 2026)
+**Items:**
+- [x] Samakan populasi proyeksi dengan saldo aktif: query scheduled transaction dibatasi ke `wallet_id` aktif, dan model proyeksi mempertahankan guard set dompet aktif.
+- [x] Pusatkan blok icon/teks `CategoryOptionTile` pada tile penuh tanpa menutup selected badge; tambahkan regression layout 360/393/412 dp pada text scale 1.3.
+- [x] Turunkan key icon kategori baru dari nama yang dikenal dan gunakan nama kategori sebagai fallback untuk stored key generik/unknown.
+- [x] Koreksi tipe provider dan simbol presentation pada dokumentasi agar sesuai dengan implementasi StreamProvider/derived Provider saat ini.
+- [x] Validasi retry: format check, analyzer, focused projection/category tests, full `flutter test` (46 tests), `flutter build apk --debug`, dan `git diff --check`; konfigurasi dummy lokal untuk key Supabase dihapus sebelum commit.
 
 ### Sprint 4.30 - Bottom Navigation Rework DONE (August 8, 2026)
 **Items:**

@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/constants.dart';
 import '../../../core/utils/utils.dart';
 import '../../../domain/entities/entities.dart';
+import '../../icons/app_icons.dart';
 import '../../providers/providers.dart';
+import '../../widgets/sequential_flow_widgets.dart';
 
 class TransactionFormScreen extends ConsumerStatefulWidget {
   final TransactionType type;
@@ -65,43 +67,35 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
 
   Future<void> _showCategoryPicker() async {
     final activeCashbook = ref.read(activeCashbookProvider);
-    try {
-      final allCategories = await ref.read(
-        categoriesProvider(activeCashbook?.cashbookId).future,
-      );
-      final categories = allCategories
-          .where((c) => c.type == widget.type)
-          .toList();
-
-      if (!mounted) return;
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: AppRadius.prominentTopBorder,
-        ),
-        builder: (_) => _CategoryPickerSheet(
-          categories: categories,
-          selectedId: _selectedCategoryId,
-          onSelected: (category) {
-            setState(() {
-              _selectedCategoryId = category.categoryId;
-              _selectedCategoryName = category.categoryName;
-              _selectedCategoryIcon = category.icon;
-              _categoryTouched = true;
-            });
-            Navigator.of(context).pop();
-          },
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
+    if (activeCashbook == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Gagal memuat kategori'),
+          content: Text('Buku kas belum dipilih'),
           backgroundColor: AppColors.error,
         ),
       );
+      return;
+    }
+
+    final category = await showModalBottomSheet<CategoryEntity>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppRadius.prominentTopBorder,
+      ),
+      builder: (_) => CategoryPickerSheet(
+        cashbookId: activeCashbook.cashbookId,
+        type: widget.type,
+        selectedId: _selectedCategoryId,
+      ),
+    );
+    if (category != null && mounted) {
+      setState(() {
+        _selectedCategoryId = category.categoryId;
+        _selectedCategoryName = category.categoryName;
+        _selectedCategoryIcon = category.icon;
+        _categoryTouched = true;
+      });
     }
   }
 
@@ -110,7 +104,7 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(DateTime.now().year + 100),
       locale: const Locale('id', 'ID'),
     );
     if (picked != null) {
@@ -167,6 +161,8 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
       ref.invalidate(walletsProvider);
       ref.invalidate(totalBalanceProvider);
       ref.invalidate(monthlySummaryProvider);
+      ref.invalidate(futureTransactionProjectionProvider);
+      ref.invalidate(cashbookBalanceProvider(activeCashbook.cashbookId));
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -338,7 +334,14 @@ class _TransactionFormScreenState extends ConsumerState<TransactionFormScreen> {
             child: Row(
               children: [
                 if (_selectedCategoryIcon != null) ...[
-                  Icon(Icons.category_outlined, size: 20, color: typeColor),
+                  Icon(
+                    AppIcons.forCategory(
+                      _selectedCategoryIcon,
+                      categoryName: _selectedCategoryName,
+                    ),
+                    size: 20,
+                    color: typeColor,
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                 ],
                 Expanded(
@@ -574,145 +577,6 @@ class _ThousandSeparatorFormatter extends TextInputFormatter {
     return TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Category picker bottom sheet
-// ---------------------------------------------------------------------------
-class _CategoryPickerSheet extends StatelessWidget {
-  final List<CategoryEntity> categories;
-  final String? selectedId;
-  final void Function(CategoryEntity) onSelected;
-
-  const _CategoryPickerSheet({
-    required this.categories,
-    required this.selectedId,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.85,
-      expand: false,
-      builder: (context, scrollController) {
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.outline,
-                      borderRadius: AppRadius.smallBorder,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  const Text(
-                    'Pilih Kategori',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: categories.isEmpty
-                  ? const Center(child: Text('Belum ada kategori'))
-                  : GridView.builder(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            mainAxisSpacing: AppSpacing.sm,
-                            crossAxisSpacing: AppSpacing.sm,
-                            childAspectRatio: 0.85,
-                          ),
-                      itemCount: categories.length,
-                      itemBuilder: (context, index) {
-                        final category = categories[index];
-                        final isSelected = category.categoryId == selectedId;
-                        return Semantics(
-                          button: true,
-                          selected: isSelected,
-                          label: category.categoryName,
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () => onSelected(category),
-                              borderRadius: AppRadius.controlBorder,
-                              child: Ink(
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? Theme.of(
-                                          context,
-                                        ).colorScheme.primaryContainer
-                                      : Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceContainerLow,
-                                  borderRadius: AppRadius.controlBorder,
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.category_outlined,
-                                      size: AppIconSize.large,
-                                      color: isSelected
-                                          ? Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimaryContainer
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
-                                    ),
-                                    const SizedBox(height: AppSpacing.xxs),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.xxs,
-                                      ),
-                                      child: Text(
-                                        category.categoryName,
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelSmall
-                                            ?.copyWith(
-                                              color: isSelected
-                                                  ? Theme.of(context)
-                                                        .colorScheme
-                                                        .onPrimaryContainer
-                                                  : Theme.of(
-                                                      context,
-                                                    ).colorScheme.onSurface,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w600
-                                                  : FontWeight.w400,
-                                            ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

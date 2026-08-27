@@ -41,13 +41,19 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
     _refreshTransactionQuery();
   }
 
-  void _onTypeChanged(String? type) {
+  void _onSegmentChanged(TransactionHistorySegment segment) {
+    ref.read(transactionHistorySegmentProvider.notifier).state = segment;
+    if (segment == TransactionHistorySegment.transfer) {
+      ref.invalidate(selectedMonthTransfersProvider);
+      return;
+    }
+
     final currentFilter = ref.read(transactionFilterProvider);
-    final transactionType = type == 'income'
-        ? TransactionType.income
-        : type == 'expense'
-        ? TransactionType.expense
-        : null;
+    final transactionType = switch (segment) {
+      TransactionHistorySegment.income => TransactionType.income,
+      TransactionHistorySegment.expense => TransactionType.expense,
+      _ => null,
+    };
     ref.read(transactionFilterProvider.notifier).state = TransactionFilter(
       startDate: currentFilter.startDate,
       endDate: currentFilter.endDate,
@@ -88,6 +94,16 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
   }
 
   Future<void> _onRefresh() async {
+    final segment = ref.read(transactionHistorySegmentProvider);
+    if (segment == TransactionHistorySegment.transfer) {
+      ref.invalidate(transfersProvider);
+      ref.invalidate(selectedMonthTransfersProvider);
+      await ref
+          .read(selectedMonthTransfersProvider.future)
+          .catchError((_) => <TransferEntity>[]);
+      return;
+    }
+
     ref.invalidate(transactionsProvider);
     ref.invalidate(transactionListItemsProvider);
     ref.invalidate(monthlySummaryProvider);
@@ -106,8 +122,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final selectedMonth = ref.watch(selectedMonthProvider);
-    final selectedType = ref.watch(transactionFilterProvider).type?.value;
-    final transactionsAsync = ref.watch(transactionListItemsProvider);
+    final selectedSegment = ref.watch(transactionHistorySegmentProvider);
+    final isTransferSegment =
+        selectedSegment == TransactionHistorySegment.transfer;
+    final transactionsAsync = isTransferSegment
+        ? null
+        : ref.watch(transactionListItemsProvider);
+    final transfersAsync = isTransferSegment
+        ? ref.watch(selectedMonthTransfersProvider)
+        : null;
     final summaryAsync = ref.watch(monthlySummaryProvider);
 
     final body = SafeArea(
@@ -116,9 +139,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
         children: [
           // ── Filter bar ──────────────────────────────────────────────────
           _FilterBar(
-            selectedType: selectedType,
+            selectedSegment: selectedSegment,
             selectedMonth: selectedMonth,
-            onTypeChanged: _onTypeChanged,
+            onSegmentChanged: _onSegmentChanged,
             onMonthTap: _pickMonth,
             onPreviousMonth: () => _onMonthStep(-1),
             onNextMonth: () => _onMonthStep(1),
@@ -130,78 +153,32 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
           // ── Summary bar ─────────────────────────────────────────────────
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
-            child: summaryAsync.when(
-              loading: () =>
-                  const _SummaryBarPlaceholder(key: ValueKey('loading')),
-              error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
-              data: (summary) {
-                final income = summary['income'] ?? 0;
-                final expense = summary['expense'] ?? 0;
-                final net = income - expense;
-                return _SummaryBar(
-                  key: ValueKey('$income:$expense:$net'),
-                  income: income,
-                  expense: expense,
-                  net: net,
-                );
-              },
-            ),
+            child: isTransferSegment
+                ? const _TransferHistorySummary(key: ValueKey('transfer'))
+                : summaryAsync.when(
+                    loading: () =>
+                        const _SummaryBarPlaceholder(key: ValueKey('loading')),
+                    error: (_, _) =>
+                        const SizedBox.shrink(key: ValueKey('error')),
+                    data: (summary) {
+                      final income = summary['income'] ?? 0;
+                      final expense = summary['expense'] ?? 0;
+                      final net = income - expense;
+                      return _SummaryBar(
+                        key: ValueKey('$income:$expense:$net'),
+                        income: income,
+                        expense: expense,
+                        net: net,
+                      );
+                    },
+                  ),
           ),
 
           // ── Transaction list ─────────────────────────────────────────────
           Expanded(
-            child: transactionsAsync.when(
-              loading: () => const _TransactionListLoading(),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: colorScheme.error,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Gagal memuat transaksi'),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => ref.invalidate(transactionsProvider),
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
-              ),
-              data: (transactions) {
-                if (transactions.isEmpty) {
-                  return _EmptyState();
-                }
-                return RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screenHorizontal,
-                      vertical: AppSpacing.xs,
-                    ),
-                    itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      final item = transactions[index];
-                      if (item.isHeader) {
-                        return _DateHeader(date: item.date!);
-                      }
-                      return TransactionTile(
-                        transaction: item.transaction!,
-                        dense: true,
-                        showDivider: index < transactions.length - 1,
-                        onTap: () => context.push(
-                          '/transactions/detail',
-                          extra: item.transaction,
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
+            child: isTransferSegment
+                ? _buildTransferList(transfersAsync!, colorScheme)
+                : _buildTransactionList(transactionsAsync!, colorScheme),
           ),
         ],
       ),
@@ -214,24 +191,120 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
       body: body,
     );
   }
+
+  Widget _buildTransactionList(
+    AsyncValue<List<TransactionListItem>> transactionsAsync,
+    ColorScheme colorScheme,
+  ) {
+    return transactionsAsync.when(
+      loading: () => const _TransactionListLoading(),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+            const SizedBox(height: 12),
+            const Text('Gagal memuat transaksi'),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => ref.invalidate(transactionsProvider),
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+      data: (transactions) {
+        if (transactions.isEmpty) return const _EmptyState();
+        return RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenHorizontal,
+              vertical: AppSpacing.xs,
+            ),
+            itemCount: transactions.length,
+            itemBuilder: (context, index) {
+              final item = transactions[index];
+              if (item.isHeader) return _DateHeader(date: item.date!);
+              return TransactionTile(
+                transaction: item.transaction!,
+                dense: true,
+                showDivider: index < transactions.length - 1,
+                onTap: () => context.push(
+                  '/transactions/detail',
+                  extra: item.transaction,
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTransferList(
+    AsyncValue<List<TransferEntity>> transfersAsync,
+    ColorScheme colorScheme,
+  ) {
+    return transfersAsync.when(
+      loading: () => const _TransactionListLoading(),
+      error: (_, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+            const SizedBox(height: 12),
+            const Text('Gagal memuat transfer'),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => ref.invalidate(selectedMonthTransfersProvider),
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+      data: (transfers) {
+        if (transfers.isEmpty) {
+          return const _EmptyState(
+            title: 'Belum ada transfer',
+            subtitle: 'di bulan yang dipilih',
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenHorizontal,
+              vertical: AppSpacing.xs,
+            ),
+            itemCount: transfers.length,
+            separatorBuilder: (_, _) =>
+                Divider(height: 1, color: colorScheme.outlineVariant),
+            itemBuilder: (context, index) =>
+                _TransferHistoryTile(transfer: transfers[index]),
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Filter bar
 // ---------------------------------------------------------------------------
 class _FilterBar extends StatelessWidget {
-  final String? selectedType;
+  final TransactionHistorySegment selectedSegment;
   final DateTime selectedMonth;
-  final void Function(String?) onTypeChanged;
+  final ValueChanged<TransactionHistorySegment> onSegmentChanged;
   final VoidCallback onMonthTap;
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
   final bool canGoNext;
 
   const _FilterBar({
-    required this.selectedType,
+    required this.selectedSegment,
     required this.selectedMonth,
-    required this.onTypeChanged,
+    required this.onSegmentChanged,
     required this.onMonthTap,
     required this.onPreviousMonth,
     required this.onNextMonth,
@@ -251,8 +324,8 @@ class _FilterBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _TypeFilterSegmentedControl(
-            selectedType: selectedType,
-            onTypeChanged: onTypeChanged,
+            selectedSegment: selectedSegment,
+            onSegmentChanged: onSegmentChanged,
           ),
           const SizedBox(height: AppSpacing.xs),
           _MonthNavigation(
@@ -268,12 +341,12 @@ class _FilterBar extends StatelessWidget {
 }
 
 class _TypeFilterSegmentedControl extends StatelessWidget {
-  final String? selectedType;
-  final void Function(String?) onTypeChanged;
+  final TransactionHistorySegment selectedSegment;
+  final ValueChanged<TransactionHistorySegment> onSegmentChanged;
 
   const _TypeFilterSegmentedControl({
-    required this.selectedType,
-    required this.onTypeChanged,
+    required this.selectedSegment,
+    required this.onSegmentChanged,
   });
 
   @override
@@ -282,21 +355,27 @@ class _TypeFilterSegmentedControl extends StatelessWidget {
     final options = [
       _TypeFilterOption(
         label: 'Semua',
-        value: null,
+        value: TransactionHistorySegment.all,
         selectedColor: colorScheme.primaryContainer,
         selectedForeground: colorScheme.onPrimaryContainer,
       ),
       _TypeFilterOption(
         label: 'Pemasukan',
-        value: 'income',
+        value: TransactionHistorySegment.income,
         selectedColor: colorScheme.incomeContainer,
         selectedForeground: colorScheme.onIncomeColor,
       ),
       _TypeFilterOption(
         label: 'Pengeluaran',
-        value: 'expense',
+        value: TransactionHistorySegment.expense,
         selectedColor: colorScheme.expenseContainer,
         selectedForeground: colorScheme.onExpenseColor,
+      ),
+      _TypeFilterOption(
+        label: 'Transfer',
+        value: TransactionHistorySegment.transfer,
+        selectedColor: colorScheme.transferContainer,
+        selectedForeground: colorScheme.onTransferColor,
       ),
     ];
 
@@ -314,8 +393,8 @@ class _TypeFilterSegmentedControl extends StatelessWidget {
             Expanded(
               child: _TypeFilterSegment(
                 option: option,
-                isSelected: selectedType == option.value,
-                onTap: () => onTypeChanged(option.value),
+                isSelected: selectedSegment == option.value,
+                onTap: () => onSegmentChanged(option.value),
               ),
             ),
         ],
@@ -326,7 +405,7 @@ class _TypeFilterSegmentedControl extends StatelessWidget {
 
 class _TypeFilterOption {
   final String label;
-  final String? value;
+  final TransactionHistorySegment value;
   final Color selectedColor;
   final Color selectedForeground;
 
@@ -542,6 +621,39 @@ class _SummaryBarPlaceholder extends StatelessWidget {
   }
 }
 
+class _TransferHistorySummary extends StatelessWidget {
+  const _TransferHistorySummary({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.transferContainer,
+        borderRadius: AppRadius.cardBorder,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.swap_horiz_rounded, color: colorScheme.onTransferColor),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Transfer tidak mengubah total saldo buku kas.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onTransferColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SummaryDividerPlaceholder extends StatelessWidget {
   const _SummaryDividerPlaceholder();
 
@@ -611,6 +723,86 @@ class _SummaryStat extends StatelessWidget {
   }
 }
 
+class _TransferHistoryTile extends StatelessWidget {
+  final TransferEntity transfer;
+
+  const _TransferHistoryTile({required this.transfer});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final from = transfer.fromWalletName ?? 'Dompet asal';
+    final to = transfer.toWalletName ?? 'Dompet tujuan';
+    return Semantics(
+      label:
+          'Transfer dari $from ke $to, ${DateFormatter.formatLongDate(transfer.transferDate)}, ${CurrencyFormatter.format(transfer.amount)}',
+      child: ExcludeSemantics(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.transferContainer,
+                    borderRadius: AppRadius.smallBorder,
+                  ),
+                  child: Icon(
+                    Icons.swap_horiz_rounded,
+                    color: colorScheme.onTransferColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$from → $to',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      DateFormatter.formatLongDate(transfer.transferDate),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 128),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    CurrencyFormatter.format(transfer.amount),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: colorScheme.onTransferColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Date header
 // ---------------------------------------------------------------------------
@@ -647,6 +839,14 @@ class _DateHeader extends StatelessWidget {
 // Empty state
 // ---------------------------------------------------------------------------
 class _EmptyState extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _EmptyState({
+    this.title = 'Belum ada transaksi',
+    this.subtitle = 'di bulan ini',
+  });
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -660,12 +860,9 @@ class _EmptyState extends StatelessWidget {
             color: colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
-          Text(
-            'Belum ada transaksi',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text('di bulan ini', style: Theme.of(context).textTheme.bodySmall),
+          Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );

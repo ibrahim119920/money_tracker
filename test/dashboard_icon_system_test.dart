@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:money_tracker/app/theme.dart';
 import 'package:money_tracker/core/constants/app_design_tokens.dart';
+import 'package:money_tracker/core/utils/currency_formatter.dart';
+import 'package:money_tracker/core/utils/date_formatter.dart';
 import 'package:money_tracker/domain/entities/entities.dart';
 import 'package:money_tracker/presentation/icons/app_icons.dart';
 import 'package:money_tracker/presentation/providers/providers.dart';
@@ -37,8 +39,8 @@ void main() {
       expect(find.byIcon(AppIcons.settings), findsOneWidget);
       expect(find.byIcon(AppIcons.cashWallet), findsOneWidget);
       expect(find.byIcon(AppIcons.bankWallet), findsOneWidget);
-      // The third wallet is intentionally lazy and starts off-screen in the
-      // horizontal carousel. Its mapping is covered by app_icons_test.dart.
+      // Every wallet is rendered vertically; remaining mappings are covered
+      // by app_icons_test.dart.
     }
 
     await tester.binding.setSurfaceSize(null);
@@ -61,6 +63,142 @@ void main() {
       await tester.binding.setSurfaceSize(null);
     },
   );
+
+  testWidgets(
+    'Dashboard exposes every wallet vertically at 360 dp and 1.3 text scale',
+    (tester) async {
+      final wallets = [
+        _wallet('wallet-1', 'Tunai Harian', WalletType.cash, 1250000),
+        _wallet(
+          'wallet-2',
+          'Rekening Keluarga Utama yang Panjang',
+          WalletType.bankAcc,
+          987654321,
+        ),
+        _wallet('wallet-3', 'Dompet Digital', WalletType.eWallet, 800000),
+        _wallet('wallet-4', 'Tabungan Pendidikan', WalletType.bankAcc, 4500000),
+      ];
+      final semantics = tester.ensureSemantics();
+      await tester.binding.setSurfaceSize(const Size(360, 852));
+      await tester.pumpWidget(
+        _dashboardApp(
+          brightness: Brightness.light,
+          textScale: 1.3,
+          walletsOverride: wallets,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is ListView && widget.scrollDirection == Axis.horizontal,
+          description: 'horizontal wallet list',
+        ),
+        findsNothing,
+      );
+      for (final wallet in wallets) {
+        expect(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is Semantics &&
+                widget.properties.label ==
+                    '${wallet.walletName}, ${CurrencyFormatter.format(wallet.currentBalance)}',
+            description: 'wallet ${wallet.walletName}',
+          ),
+          findsOneWidget,
+        );
+      }
+
+      semantics.dispose();
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
+
+  testWidgets(
+    'Dashboard month controls update selected month and refresh the summary',
+    (tester) async {
+      final now = DateTime.now();
+      final currentMonth = DateTime(now.year, now.month);
+      await tester.binding.setSurfaceSize(const Size(393, 852));
+      await tester.pumpWidget(
+        _dashboardApp(
+          brightness: Brightness.light,
+          selectedMonth: currentMonth,
+          dynamicMonthlySummary: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Bulan sebelumnya'), findsOneWidget);
+      expect(find.byTooltip('Bulan berikutnya'), findsOneWidget);
+      expect(
+        tester
+            .widget<IconButton>(
+              find.byKey(const ValueKey('dashboard-month-next')),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('dashboard-month-previous')));
+      await tester.pumpAndSettle();
+
+      final previous = DateTime(currentMonth.year, currentMonth.month - 1);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(DashboardScreen)),
+      );
+      expect(container.read(selectedMonthProvider), previous);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.label ==
+                  'Ringkasan bulan ${DateFormatter.formatMonthYear(previous)}',
+          description: 'dashboard selected month semantics',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(CurrencyFormatter.format(previous.month * 1000)),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<IconButton>(
+              find.byKey(const ValueKey('dashboard-month-next')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
+
+  testWidgets('Dashboard keeps a net-zero future projection visible', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    await tester.pumpWidget(
+      _dashboardApp(
+        brightness: Brightness.light,
+        projection: const FutureTransactionProjection(
+          currentBalance: 5550000,
+          endOfCurrentMonthBalance: 5550000,
+          futureNet: 0,
+          currentMonthFutureNet: 0,
+          futureTransactionCount: 2,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('2 transaksi mendatang'), findsOneWidget);
+    expect(find.textContaining('Net Rp 0'), findsOneWidget);
+    await tester.binding.setSurfaceSize(null);
+  });
 
   testWidgets(
     'Cashbook switcher exposes tooltip, semantics, and pressed state',
@@ -286,6 +424,10 @@ Widget _dashboardApp({
   required Brightness brightness,
   double textScale = 1,
   bool emptyOnboarding = false,
+  List<WalletEntity>? walletsOverride,
+  DateTime? selectedMonth,
+  bool dynamicMonthlySummary = false,
+  FutureTransactionProjection? projection,
 }) {
   final now = DateTime(2026, 8, 3);
   final cashbook = CashbookEntity(
@@ -327,7 +469,10 @@ Widget _dashboardApp({
 
   final cashbooks = emptyOnboarding ? <CashbookEntity>[] : [cashbook];
   final activeCashbook = emptyOnboarding ? null : cashbook;
-  final wallets = emptyOnboarding ? <WalletEntity>[] : populatedWallets;
+  final wallets = emptyOnboarding
+      ? <WalletEntity>[]
+      : walletsOverride ?? populatedWallets;
+  final initialMonth = selectedMonth ?? DateTime(2026, 8);
 
   return RepaintBoundary(
     key: _dashboardCaptureKey,
@@ -341,11 +486,25 @@ Widget _dashboardApp({
         totalBalanceProvider.overrideWith(
           (ref) => emptyOnboarding ? 0 : 5550000,
         ),
-        selectedMonthProvider.overrideWith((ref) => DateTime(2026, 8)),
-        monthlySummaryProvider.overrideWith(
-          (ref) => emptyOnboarding
-              ? {'income': 0, 'expense': 0}
-              : {'income': 7500000, 'expense': 1950000},
+        selectedMonthProvider.overrideWith((ref) => initialMonth),
+        monthlySummaryProvider.overrideWith((ref) {
+          final month = ref.watch(selectedMonthProvider);
+          if (emptyOnboarding) return {'income': 0, 'expense': 0};
+          if (dynamicMonthlySummary) {
+            return {'income': month.month * 1000, 'expense': 0};
+          }
+          return {'income': 7500000, 'expense': 1950000};
+        }),
+        futureTransactionProjectionProvider.overrideWith(
+          (ref) =>
+              projection ??
+              const FutureTransactionProjection(
+                currentBalance: 5550000,
+                endOfCurrentMonthBalance: 5550000,
+                futureNet: 0,
+                currentMonthFutureNet: 0,
+                futureTransactionCount: 0,
+              ),
         ),
       ],
       child: MaterialApp(
@@ -364,5 +523,17 @@ Widget _dashboardApp({
         home: const DashboardScreen(),
       ),
     ),
+  );
+}
+
+WalletEntity _wallet(String id, String name, WalletType type, int balance) {
+  return WalletEntity(
+    walletId: id,
+    cashbookId: 'cashbook-1',
+    type: type,
+    walletName: name,
+    initialBalance: balance,
+    currentBalance: balance,
+    createdAt: DateTime(2026, 8, 1),
   );
 }

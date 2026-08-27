@@ -60,14 +60,37 @@ void main() {
         Icons.shopping_bag_rounded,
       );
       expect(AppIcons.forCategory('komunikasi'), Icons.cell_tower_rounded);
+      expect(AppIcons.forCategory('DONASI'), Icons.volunteer_activism_rounded);
+      expect(AppIcons.forCategory('bensin'), Icons.local_gas_station_rounded);
+      expect(
+        AppIcons.forCategory('Kebutuhan Harian'),
+        Icons.shopping_bag_rounded,
+      );
+      expect(AppIcons.forCategory('langganan'), Icons.subscriptions_rounded);
     });
 
     test('returns a deterministic fallback for unsupported category keys', () {
       expect(AppIcons.forCategory(null), AppIcons.categoryFallback);
       expect(AppIcons.forCategory(''), AppIcons.categoryFallback);
-      expect(AppIcons.forCategory('donasi'), AppIcons.categoryFallback);
       expect(AppIcons.forCategory('unknown-key'), AppIcons.categoryFallback);
     });
+
+    test(
+      'uses category names when a stored icon key is generic or unknown',
+      () {
+        expect(
+          AppIcons.forCategory('category', categoryName: 'Donasi'),
+          Icons.volunteer_activism_rounded,
+        );
+        expect(
+          AppIcons.forCategory('legacy-unknown', categoryName: 'Bensin'),
+          Icons.local_gas_station_rounded,
+        );
+        expect(AppIcons.categoryKeyForName('Donasi'), 'donasi');
+        expect(AppIcons.categoryKeyForName('Bensin Motor'), 'bensin');
+        expect(AppIcons.categoryKeyForName('Kategori Pribadi'), 'category');
+      },
+    );
 
     test('uses the restrained Phase 2 icon-size scale', () {
       expect(AppIconSize.small, 18);

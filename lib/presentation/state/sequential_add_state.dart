@@ -47,7 +47,7 @@ class TransactionDraft {
       Validators.validateAmountValue(amount) == null &&
       categoryId != null &&
       walletId != null &&
-      Validators.validatePastDate(transactionDate) == null &&
+      Validators.validateTransactionDate(transactionDate) == null &&
       Validators.validateNotes(notes) == null;
 
   TransactionDraft copyWith({
@@ -153,7 +153,6 @@ class TransactionDraftController extends AutoDisposeNotifier<TransactionDraft> {
 
   void setDate(DateTime value) {
     final normalized = dateOnly(value);
-    if (normalized.isAfter(dateOnly(DateTime.now()))) return;
     state = state.copyWith(transactionDate: normalized);
   }
 

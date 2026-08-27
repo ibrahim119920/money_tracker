@@ -19,7 +19,7 @@ void main() {
   });
 
   testWidgets(
-    'transaction type filters use equal thirds and preserve filter state',
+    'transaction history filters use equal segments and preserve legacy filter state',
     (tester) async {
       final semantics = tester.ensureSemantics();
       final container = ProviderContainer(
@@ -31,6 +31,21 @@ void main() {
             (ref) async => {'income': 0, 'expense': 0},
           ),
           selectedMonthProvider.overrideWith((ref) => DateTime(2026, 8)),
+          selectedMonthTransfersProvider.overrideWith(
+            (ref) => [
+              TransferEntity(
+                transferId: 'transfer-1',
+                cashbookId: 'cashbook-1',
+                fromWalletId: 'wallet-a',
+                toWalletId: 'wallet-b',
+                amount: 125000,
+                transferDate: DateTime(2026, 8, 8),
+                createdAt: DateTime(2026, 8, 8),
+                fromWalletName: 'Dompet Asal',
+                toWalletName: 'Dompet Tujuan',
+              ),
+            ],
+          ),
         ],
       );
 
@@ -54,6 +69,7 @@ void main() {
           'Filter Semua',
           'Filter Pemasukan',
           'Filter Pengeluaran',
+          'Filter Transfer',
         ];
         Finder segmentFor(String label) {
           return find.byWidgetPredicate(
@@ -66,13 +82,14 @@ void main() {
           for (final label in labels) tester.getSize(segmentFor(label)).width,
         ];
         final expectedWidth =
-            (360 - (2 * AppSpacing.screenHorizontal) - (2 * 2)) / 3;
+            (360 - (2 * AppSpacing.screenHorizontal) - (2 * 2)) / 4;
 
         for (final width in widths) {
           expect(width, closeTo(expectedWidth, 1));
         }
         expect(widths[0], closeTo(widths[1], 1));
         expect(widths[1], closeTo(widths[2], 1));
+        expect(widths[2], closeTo(widths[3], 1));
         final longestLabel = find
             .byWidgetPredicate(
               (widget) => widget is Text && widget.data == 'Pengeluaran',
@@ -92,6 +109,7 @@ void main() {
           'Filter Semua': colorScheme.primaryContainer,
           'Filter Pemasukan': colorScheme.incomeContainer,
           'Filter Pengeluaran': colorScheme.expenseContainer,
+          'Filter Transfer': colorScheme.transferContainer,
         };
 
         Future<void> tapAndExpect({
@@ -137,6 +155,32 @@ void main() {
           type: TransactionType.expense,
         );
         await tapAndExpect(label: 'Filter Semua', type: null);
+
+        await tester.tap(segmentFor('Filter Transfer'));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(transactionHistorySegmentProvider),
+          TransactionHistorySegment.transfer,
+        );
+        expect(container.read(transactionFilterProvider).type, isNull);
+        expect(
+          tester
+              .getSemantics(segmentFor('Filter Transfer'))
+              .flagsCollection
+              .isSelected,
+          Tristate.isTrue,
+        );
+        final transferMaterial = find.descendant(
+          of: segmentFor('Filter Transfer'),
+          matching: find.byType(Material),
+        );
+        expect(
+          tester.widget<Material>(transferMaterial).color,
+          expectedColors['Filter Transfer'],
+        );
+        expect(find.text('Dompet Asal → Dompet Tujuan'), findsOneWidget);
+        expect(find.text('8 Agustus 2026'), findsOneWidget);
+        expect(find.text('Rp 125.000'), findsOneWidget);
       } finally {
         semantics.dispose();
         container.dispose();
